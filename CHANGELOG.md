@@ -1,5 +1,25 @@
 ﻿# Change Log
 
+## [2.7.5] - 2026-10-14 - 连接失败说清原因、CLI 参数顺序、Unified 连接不再假成功
+
+### 修复
+
+- **连不上博途时只报最后一句（#51）。** 引擎先逐个附加正在运行的博途，全都附加不上才新起一个实例；
+  原来新起也失败时只报 `Connection to TiaPortal failed`（栈顶是 `TiaPortal..ctor`），前面每个进程
+  为什么附加不上只进了日志。现在报错里逐个列出（附加超时 / 异常类型和首行），并提示「博途窗口里可能
+  有等确认的对话框」。
+- **全局参数写在命令前面时被静默当成 MCP 服务器（#51）。** `TiaMcpServer.exe --tia-major-version 21 prewarm`
+  不报错、直接以服务器模式起来、stdin 一关就 exit 0。现在找到命令照常执行；没有命令时照旧走 MCP 服务器。
+  `gen --tia-major-version 21 x.json` 也不再把 `21` 当成 spec 路径。
+- **`EnsureUnifiedHmiConnection` 报 "ensured"，运行时却连不上（#50）。** 三处都没读回：
+  `DisabledAtStartup` 保持 Openness 默认的 `True`（运行时根本不建立连接）；`InitialAddress` 里的
+  PLC/HMI IP 保持写死的 192.168.0.1/.2；伙伴 `Partner/Station/Node` 在 Openness 里只读、从没写进去过。
+  现在 `DisabledAtStartup` 改为 `False` 并读回；两端 IP 按硬件组态改写并读回（其它键原样保留）；
+  核对两端是否在同一子网；改不成就报失败。消息如实标注**非集成连接**——这类连接上 HMI 变量只能用
+  `address` 绝对地址（非优化 DB）绑定；要按 PLC 符号绑定，需在博途「设备和网络 → 连接」里手动建集成连接。
+  用户手动建的集成连接只读回、不改写地址。
+- 工具说明、Bootstrap 限制说明、SKILL 里「用符号绑定、不要绝对地址」的说法与上面的事实相反，已更正。
+
 ## [2.7.4] - 2026-10-07 - 审查与加固：并发、CallTool、HTTP 桥、下载安全、假成功；HMI 属性一次读全
 
 对照 Openness 手册（V18–V21，本地 RAG）逐项核过的一轮审查（PR #45，感谢 @zy13027），

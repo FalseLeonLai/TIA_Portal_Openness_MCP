@@ -1,6 +1,6 @@
 {
-  "package": "TIA_MCP_Delivery_v2.7.4",
-  "generatedAt": "2026-10-07T19:58:39.485642+08:00",
+  "package": "TIA_MCP_Delivery_v2.7.5",
+  "generatedAt": "2026-10-14T22:02:18.501007+08:00",
   "source": "live MCP tools/list of TiaMcpServer.exe",
   "toolCount": 224,
   "note": "Full roster (--profile full). The default lite profile lists only the core tools; the rest stay reachable via FindTools + CallTool. Runtime tools/list remains authoritative.",
@@ -933,7 +933,7 @@
         "connectionName",
         "plcName"
       ],
-      "description": "[L2][HMI-Unified] Create or verify the PLC↔HMI communication connection (HMI_Connection_1 by default). Requires: Connect + OpenProject + both PLC and Unified HMI devices. Must exist before PLC-backed HMI tags can exchange data. Call before EnsureUnifiedHmiTag with plcTag binding. UNIFIED PANELS ONLY: on Classic/Comfort/Basic panels (KTP Basic, TP/KTP Comfort) this connection cannot be created via Openness (CommunicationConnections service is not exposed); if the project needs end-to-end HMI automation, use a WinCC Unified panel instead of a classic one."
+      "description": "[L2][HMI-Unified] Create or verify the PLC↔HMI communication connection (HMI_Connection_1 by default). Requires: Connect + OpenProject + both PLC and Unified HMI devices. Must exist before PLC-backed HMI tags can exchange data. The connection Openness creates is NON-integrated (Partner/Station/Node are read-only, no PLC partner): bind HMI tags with an absolute `address` (non-optimized DB); symbolic plcTag binding needs an integrated connection created in the TIA GUI. Also sets DisabledAtStartup=false and the PLC/HMI IPs from the hardware configuration, and fails if either cannot be applied. UNIFIED PANELS ONLY: on Classic/Comfort/Basic panels (KTP Basic, TP/KTP Comfort) this connection cannot be created via Openness (CommunicationConnections service is not exposed); if the project needs end-to-end HMI automation, use a WinCC Unified panel instead of a classic one."
     },
     {
       "name": "EnsureUnifiedHmiDynamization",
