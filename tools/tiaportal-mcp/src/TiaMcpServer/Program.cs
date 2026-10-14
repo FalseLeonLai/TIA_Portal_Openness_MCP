@@ -122,10 +122,12 @@ namespace TiaMcpServer
 
                 // CLI verb dispatch: `tia gen|patch|compile|export|import|describe|prewarm|schema|version`.
                 // Engine config (assembly resolver, version, headless) is already applied above, so verb
-                // handlers can connect immediately. Falls through to MCP host when args[0] isn't a verb.
-                if (args.Length > 0 && Cli.CliCommands.IsVerb(args[0]))
+                // handlers can connect immediately. Global flags may come before the verb
+                // (`--tia-major-version 21 gen x.json`); falls through to MCP host when there is no verb.
+                var verbArgs = Cli.CliVerbArgs.ExtractVerbArgs(args, Cli.CliCommands.IsVerb);
+                if (verbArgs != null)
                 {
-                    Environment.Exit(Cli.CliCommands.Run(args));
+                    Environment.Exit(Cli.CliCommands.Run(verbArgs));
                     return;
                 }
 

@@ -341,13 +341,10 @@ namespace TiaMcpServer.Cli
         private static string Json(object o) =>
             JsonSerializer.Serialize(o, new JsonSerializerOptions { WriteIndented = true });
 
-        // First non-flag argument after the verb (the project/spec path).
+        // First non-flag argument after the verb (the project/spec path); flag values are skipped.
         private static string Positional(string[] args)
-        {
-            for (int i = 1; i < args.Length; i++)
-                if (!args[i].StartsWith("-")) return args[i];
-            throw new ArgumentException($"`tia {args[0]}` requires a path argument. Run `tia help` for usage.");
-        }
+            => CliVerbArgs.Positional(args)
+               ?? throw new ArgumentException($"`tia {args[0]}` requires a path argument. Run `tia help` for usage.");
 
         private static string? Opt(string[] args, string name)
         {

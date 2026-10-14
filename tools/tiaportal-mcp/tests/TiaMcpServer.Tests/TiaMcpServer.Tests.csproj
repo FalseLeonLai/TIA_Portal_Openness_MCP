@@ -60,5 +60,10 @@
     <!-- 下载对话框的应答表：答案必须是手册里该提示枚举的成员，否则设不进去、下载无声失败；
          「取消正在进行的测试/调试功能」必须是显式选择。 -->
     <Compile Include="..\..\src\TiaMcpServer\Siemens\DownloadPromptPolicy.cs" Link="DownloadPromptPolicy.cs" />
+    <!-- issue #51：动词前的全局参数曾被静默当成 MCP 服务器；连接失败曾只报新起实例那一句。
+         issue #50：Unified 连接的 InitialAddress 改写与两端 IP 挑选。 -->
+    <Compile Include="..\..\src\TiaMcpServer\Cli\CliVerbArgs.cs" Link="CliVerbArgs.cs" />
+    <Compile Include="..\..\src\TiaMcpServer\Siemens\ConnectFailureText.cs" Link="ConnectFailureText.cs" />
+    <Compile Include="..\..\src\TiaMcpServer\Siemens\HmiConnectionSpec.cs" Link="HmiConnectionSpec.cs" />
   </ItemGroup>
 </Project>

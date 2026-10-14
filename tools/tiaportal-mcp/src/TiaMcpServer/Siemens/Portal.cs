@@ -245,6 +245,8 @@ namespace TiaMcpServer.Siemens
                 // connect to running TIA Portal
                 var processes = TiaPortal.GetProcesses();
                 _logger?.LogInformation($"TIA Portal process count: {processes.Count()}");
+                // 每个进程为什么附加不上。下面新起实例也失败时要带进报错（issue #51）。
+                var attachNotes = new List<string>();
                 if (processes.Any())
                 {
                     // IMPORTANT: multiple Siemens.Automation.Portal.exe can run at once.
@@ -268,7 +270,11 @@ namespace TiaMcpServer.Siemens
                             _logger?.LogInformation(candidate == null
                                 ? $"Attach returned null/timed out for PID={proc.Id} — skipping"
                                 : $"Attach succeeded for PID={proc.Id}");
-                            if (candidate == null) continue;
+                            if (candidate == null)
+                            {
+                                attachNotes.Add(ConnectFailureText.AttachTimedOut(proc.Id, 30000));
+                                continue;
+                            }
 
                             // record first attachable in case none has projects
                             if (firstAttachable == null)
@@ -313,6 +319,7 @@ namespace TiaMcpServer.Siemens
                         {
                             _logger?.LogWarning(ex, $"Attach failed for TIA Portal PID={proc.Id}");
                             LastConnectError = ex.ToString();
+                            attachNotes.Add(ConnectFailureText.AttachFailed(proc.Id, ex));
 
                             // "这个候选连不上"（忙 / attach 超时 / 没有工程）可以换下一个；
                             // 但白名单/授权被拒换谁都一样，继续扫毫无意义且有害：扫空所有候选后
@@ -363,9 +370,23 @@ namespace TiaMcpServer.Siemens
                     ? TiaPortalMode.WithUserInterface
                     : TiaPortalMode.WithoutUserInterface;
                 _logger?.LogInformation($"Starting a new TIA Portal instance ({launchMode}).");
-                _portal = new TiaPortal(launchMode);
+                try
+                {
+                    _portal = new TiaPortal(launchMode);
+                }
+                catch (Exception launchEx) when (attachNotes.Count > 0)
+                {
+                    throw new PortalException(PortalErrorCode.OpennessError,
+                        ConnectFailureText.AttachThenLaunchFailed(attachNotes, launchMode.ToString(), FormatExceptionDetail(launchEx)),
+                        inner: launchEx);
+                }
 
                 return true;
+            }
+            catch (PortalException)
+            {
+                // 上面已经带着附加经过报出来了，别再包一层把它换成只剩新起实例那句的文案。
+                throw;
             }
             catch (Exception ex)
             {

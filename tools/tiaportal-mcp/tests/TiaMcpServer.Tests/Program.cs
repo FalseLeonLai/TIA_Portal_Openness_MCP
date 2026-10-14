@@ -81,6 +81,9 @@ namespace TiaMcpServer.Tests
             Console.WriteLine("== 下载提示应答：只用手册里的枚举值，取消测试功能必须显式选择 ==");
             DownloadPromptPolicyTests.Run(Check);
 
+            Console.WriteLine("== CLI 全局参数前置 / 连接失败带附加经过（#51）+ Unified 连接 IP 改写（#50）==");
+            Issue50And51Tests.Run(Check);
+
             Console.WriteLine(_fail == 0
                 ? $"{_pass} passed, {_fail} failed, {_skip} skipped."
                 : $"{_pass} passed, {_fail} failed, {_skip} skipped.  <<< 有失败");

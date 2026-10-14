@@ -2753,11 +2753,13 @@ namespace TiaMcpServer.Siemens
 
             // 去掉 ?? TryFindByNameInCollection(connections, Array.Empty<string>(), ...)：空 hints 恒返回 null。
             var connection = FindExistingByName(connections, connectionName);
+            var created = false;
             if (connection == null)
             {
                 var create = connections.GetType().GetMethod("Create", new[] { typeof(string) });
                 if (create == null) throw new InvalidOperationException($"Create(string) not found on {connections.GetType().FullName}.");
                 connection = InvokeCreate(create, connections, new object[] { connectionName });
+                created = true;
             }
 
             if (connection == null) throw new InvalidOperationException("Connection create/find returned null.");
@@ -2769,6 +2771,12 @@ namespace TiaMcpServer.Siemens
             // Driver last so partner binding cannot clobber S7-1200/1500 selection.
             TryConfigureUnifiedHmiCommunicationDriver(connection, plcName);
             ValidateUnifiedHmiCommunicationDriver(connection, partner.Family);
+            // 原来到这里就报 "ensured"（issue #50）：伙伴写不进去（只读）没人读回，DisabledAtStartup 仍是
+            // Openness 默认的 True（运行时不连），InitialAddress 仍是写死的 192.168.0.1/.2 —— 编译 0 错、画面永远不刷新。
+            var runtime = EnsureUnifiedConnectionRuntime(connection, hmiSoftwarePath, plcName);
+            var state = created ? "created" : "exists";
+            if (!runtime.DisabledAtStartupOk || (!runtime.PeerAddressOk && !runtime.PeerAddressUnknown))
+                throw new InvalidOperationException($"HMI connection '{connectionName}' {state} but will not work at runtime: {string.Join("; ", runtime.Notes)}");
 
             return new ModelContextProtocol.ResponseObjectDescribe
             {
@@ -2776,7 +2784,9 @@ namespace TiaMcpServer.Siemens
                 ObjectPath = $"{hmiSoftwarePath}:{connectionName}",
                 TypeName = connection.GetType().FullName,
                 Members = DescribeMembers(connection, 220),
-                Message = $"HMI connection '{connectionName}' ensured. PartnerResolved={partner.Summary}; {SummarizeHmiObjectReadback(connection, "Name", "CommunicationDriver", "Partner", "Station", "Node", "InitialAddress", "PlcName", "ControllerName", "PartnerName")}"
+                Message = $"HMI connection '{connectionName}' {state} ({(runtime.Integrated ? "integrated" : "NON-integrated: bind HMI tags by absolute address")}). "
+                    + $"Runtime: {string.Join("; ", runtime.Notes)}. TargetPlc(inferred, not a readback)={partner.Summary}; "
+                    + $"Readback: {SummarizeHmiObjectReadback(connection, "Name", "CommunicationDriver", "DisabledAtStartup", "Partner", "Station", "Node", "InitialAddress", "PlcName", "ControllerName", "PartnerName")}"
             };
         }
 
