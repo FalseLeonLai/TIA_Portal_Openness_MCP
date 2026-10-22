@@ -1,5 +1,24 @@
 ﻿# Change Log
 
+## [2.7.7] - 2026-10-22 - V21 上经典面板能自动建 HMI 连接，Unified 建出集成连接
+
+工具数不变（235）。只影响 `EnsureUnifiedHmiConnection` 在 TIA V21 上新建连接的方式；V20 行为不变。
+
+### 修复
+
+- **V21 上 `EnsureUnifiedHmiConnection` 改走硬件层连接接口（#13，感谢 @King618219 实测指出）。**
+  V21 的 Openness 提供 `CommunicationManagement.Connections.Create<HmiConnection>(HMI 网口节点, PLC 的 CPU, PLC 网口节点)`：
+  - **经典面板**（精简 / 精智，含二代屏）：现在能自动建 PLC↔HMI 连接。HMI 变量通过 XML 导入时用绝对地址
+    （`AddressAccessMode=Absolute` + `LogicalAddress`，非优化 DB）；起始画面仍需在博途界面里设一次。
+  - **WinCC Unified 面板**：新建的连接是**集成连接**（PLC 伙伴已设好），`EnsureUnifiedHmiTag` 可以直接按 PLC 变量名
+    符号绑定，不再必须用绝对地址和非优化 DB（#50、#53 相关）。
+  - 前提：两台设备的以太网口在同一条子网上（`ConnectDeviceNodesToProfinetSubnet`，HMI 端传接口模块，如
+    `HMI_1/HMI_1.IE_CP_1`）。没组网时直接拒绝并说明，不改任何东西。
+  - 同一对 HMI 和 PLC 之间已有连接时建不了第二条：报错会点名已有的连接，复用它的名字即可（已有的连接若是旧版
+    建的非集成连接、又需要符号绑定，在博途界面删掉后重跑本工具）。
+  - Unified 面板上硬件层建不成时退回原来的方式（非集成连接），并在结果里写明原因。
+- **TIA V20**：没有这个接口，行为不变；经典面板的报错改为说明「V20 建不了、V21 可以」。
+
 ## [2.7.6] - 2026-10-22 - 日常编辑工具：变量、变量表 / 监控表、背景 DB、删设备、改名、硬件编译、归档
 
 工具数 224 → 235；精简档 62 → 65（三个删除工具按惯例以本名列出，CallTool 不转发）。
