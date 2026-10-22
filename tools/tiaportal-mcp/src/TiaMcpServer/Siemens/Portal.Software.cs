@@ -1200,7 +1200,7 @@ namespace TiaMcpServer.Siemens
                 if (col == null)
                     throw new PortalException(PortalErrorCode.NotFound, $"TechnologyObjects collection not found. plcType={plc.GetType().FullName} groupType={group.GetType().FullName}");
 
-                if (TryImportEngineeringObjectIntoCollection(col, importPath, out _, out var err)) return;
+                if (TryImportEngineeringObjectIntoCollection(col, PrepareXmlForImport(importPath), out _, out var err)) return;
                 throw new PortalException(PortalErrorCode.ImportFailed, err ?? "ImportTechnologyObject failed");
             }
             catch (PortalException)
@@ -2757,6 +2757,12 @@ namespace TiaMcpServer.Siemens
             if (connection == null)
             {
                 var create = connections.GetType().GetMethod("Create", new[] { typeof(string) });
+                if (create == null && string.Equals(sw.GetType().Name, "HmiTarget", StringComparison.Ordinal))
+                    // 经典 WinCC 面板（精简 / 精智，含二代）：ConnectionComposition 没有 Create —— Openness 建不出经典连接（issue #13 实测）。
+                    throw new InvalidOperationException(
+                        $"'{hmiSoftwarePath}' is a classic WinCC panel (Basic/Comfort), not WinCC Unified, and Openness cannot create classic HMI connections "
+                        + "(the classic ConnectionComposition has no Create). Create the connection once in the TIA UI (Devices & networks → HMI connection); "
+                        + "EnsureUnifiedHmiConnection only works on WinCC Unified panels. Nothing was changed.");
                 if (create == null) throw new InvalidOperationException($"Create(string) not found on {connections.GetType().FullName}.");
                 connection = InvokeCreate(create, connections, new object[] { connectionName });
                 created = true;
@@ -4995,7 +5001,7 @@ namespace TiaMcpServer.Siemens
                 if (screens == null)
                     throw new PortalException(PortalErrorCode.NotFound, $"Screens collection not found. swType={sw.GetType().FullName} groupType={group.GetType().FullName}");
 
-                if (TryImportEngineeringObjectIntoCollection(screens, importPath, out _, out var err))
+                if (TryImportEngineeringObjectIntoCollection(screens, PrepareXmlForImport(importPath), out _, out var err))
                     return;
 
                 throw new PortalException(PortalErrorCode.ImportFailed, err ?? "ImportHmiScreen failed");
@@ -5034,7 +5040,7 @@ namespace TiaMcpServer.Siemens
                 if (tables == null)
                     throw new PortalException(PortalErrorCode.NotFound, $"TagTables collection not found. swType={sw.GetType().FullName} groupType={group.GetType().FullName}");
 
-                if (TryImportEngineeringObjectIntoCollection(tables, importPath, out _, out var err))
+                if (TryImportEngineeringObjectIntoCollection(tables, PrepareXmlForImport(importPath), out _, out var err))
                     return;
 
                 throw new PortalException(PortalErrorCode.ImportFailed, err ?? "ImportHmiTagTable failed");
@@ -5063,7 +5069,7 @@ namespace TiaMcpServer.Siemens
                 if (connections == null)
                     throw new PortalException(PortalErrorCode.NotFound, $"Connections collection not found. swType={sw.GetType().FullName}");
 
-                if (TryImportEngineeringObjectIntoCollection(connections, importPath, out _, out var err))
+                if (TryImportEngineeringObjectIntoCollection(connections, PrepareXmlForImport(importPath), out _, out var err))
                     return;
 
                 throw new PortalException(PortalErrorCode.ImportFailed, err ?? "ImportHmiConnection failed");

@@ -27,8 +27,13 @@ namespace TiaMcpServer.Tests
                 "destructive, open-world, direct-only");
             Pin("GoOnline", s => s.OpenWorld && s.DirectOnly && !s.ReadOnly, "open-world, direct-only");
             Pin("SetWatchTableModifyValue", s => s.Destructive && s.DirectOnly, "destructive, direct-only");
-            foreach (var del in new[] { "DeletePlcBlock", "DeletePlcType", "DeletePlcTagTable", "DeletePlcExternalSource" })
+            foreach (var del in new[] { "DeletePlcBlock", "DeletePlcType", "DeletePlcTagTable", "DeletePlcExternalSource",
+                                         "DeletePlcTag", "DeletePlcWatchTable", "DeleteDevice" })
                 Pin(del, s => s.Destructive && s.DirectOnly && !s.Idempotent, "destructive, direct-only");
+            // 日常编辑工具：读的只读，写的不是只读、也不要求本名调用。
+            Pin("GetPlcTags", s => s.ReadOnly && !s.Destructive, "read-only");
+            foreach (var w in new[] { "SetPlcTag", "CreatePlcTagTable", "CreatePlcWatchTable", "CreateInstanceDB", "RenamePlcObject", "CompileHardware", "ArchiveProject" })
+                Pin(w, s => !s.ReadOnly && !s.DirectOnly && s.TouchesPortal, "writes, but callable through CallTool");
             Pin("CallTool", s => s.Destructive && s.TouchesPortal && !s.DirectOnly, "inherits the worst case but stays callable");
             Pin("InvokeObject", s => s.Destructive, "generic reflection bridge is destructive");
             Pin("ImportBlock", s => s.Destructive, "imports use Override semantics");

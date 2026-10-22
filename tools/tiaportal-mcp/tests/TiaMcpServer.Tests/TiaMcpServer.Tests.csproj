@@ -65,5 +65,7 @@
     <Compile Include="..\..\src\TiaMcpServer\Cli\CliVerbArgs.cs" Link="CliVerbArgs.cs" />
     <Compile Include="..\..\src\TiaMcpServer\Siemens\ConnectFailureText.cs" Link="ConnectFailureText.cs" />
     <Compile Include="..\..\src\TiaMcpServer\Siemens\HmiConnectionSpec.cs" Link="HmiConnectionSpec.cs" />
+    <!-- 日常编辑工具的纯逻辑：参数校验、地址规整、组路径、归档文件名、整台设备守卫。 -->
+    <Compile Include="..\..\src\TiaMcpServer\Siemens\EverydayEditSpec.cs" Link="EverydayEditSpec.cs" />
   </ItemGroup>
 </Project>

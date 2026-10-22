@@ -68,6 +68,7 @@ namespace TiaMcpServer.ModelContextProtocol
             // 这一组必须与 ToolSafety.DirectOnlyTools 完全一致 —— 离线用例钉着。
             "DownloadToPlc", "GoOnline", "SetWatchTableModifyValue",
             "DeletePlcBlock", "DeletePlcType", "DeletePlcTagTable", "DeletePlcExternalSource",
+            "DeletePlcTag", "DeletePlcWatchTable", "DeleteDevice",
         };
 
         /// <summary>The lite roster as data, for the offline suite and the self-test.</summary>

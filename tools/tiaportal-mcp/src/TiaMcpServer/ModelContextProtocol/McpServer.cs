@@ -253,7 +253,8 @@ namespace TiaMcpServer.ModelContextProtocol
                     Transport = Environment.GetEnvironmentVariable("MCP_TRANSPORT") ?? "stdio",
                 };
 
-                try { env.OpennessGroupOk = await Siemens.Openness.IsUserInGroup(); }
+                // 只读：只查不加组（IsUserInGroup 不在组时会调 AddUserToGroupAsync，可能弹 UAC 改系统）。
+                try { env.OpennessGroupOk = Siemens.Openness.IsUserInGroupNoFix(); }
                 catch { env.OpennessGroupOk = false; }
 
                 var portalDto = new BootstrapPortal();
@@ -400,7 +401,8 @@ namespace TiaMcpServer.ModelContextProtocol
                 bool opennessOk;
                 try
                 {
-                    opennessOk = await Siemens.Openness.IsUserInGroup();
+                    // 自检只读：只查不加组（加组用 EnsureOpennessUserGroup 或 Doctor fix=true）。
+                    opennessOk = Siemens.Openness.IsUserInGroupNoFix();
                     Add("openness.user-group", "Siemens TIA Openness user group", opennessOk ? "pass" : "fail", opennessOk ? "Current user is in the Openness group." : "Current user is not in the Openness group, or membership could not be confirmed.");
                 }
                 catch (Exception ex)

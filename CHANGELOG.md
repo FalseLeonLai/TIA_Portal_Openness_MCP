@@ -1,5 +1,39 @@
 ﻿# Change Log
 
+## [Unreleased] - 日常编辑工具：变量、变量表 / 监控表、背景 DB、删设备、改名、硬件编译、归档
+
+工具数 224 → 235；精简档 62 → 65（三个删除工具按惯例以本名列出，CallTool 不转发）。
+
+### 新增
+
+- **`GetPlcTags`**：直接列 PLC 变量（名称 / 类型 / 地址 / 注释 / HMI 可见性），不用先导出 XML；
+  可按变量表、名字片段、地址前缀筛（`%Q` = 所有输出），查某个地址被谁占、哪些地址还空着。
+- **`SetPlcTag`**：建一个变量，或原地改已有变量的名字 / 类型 / 地址 / 注释；改完读回。重名拒绝；
+  地址被别的变量占着时提示（不拦，TIA 本身也允许重叠）；注释语言不对时在任何改动之前就拒。
+- **`DeletePlcTag`** / **`DeletePlcWatchTable`** / **`DeleteDevice`**：和 `DeletePlcBlock` 同一规格——
+  默认 `dryRun=true` 只预览影响，确认后实删并读回。`DeleteDevice` 只认设备名或它的 CPU / 头模块名，
+  给模块名会拒绝（否则「删一个模块」会变成连程序删掉整个站）。
+- **`CreatePlcTagTable`** / **`CreatePlcWatchTable`**：建空变量表 / 空监控表，可放进已有的组。
+- **`CreateInstanceDB`**：直接给 FB 建背景 DB（默认名 `<FB>_DB`、自动编号），读回确认它属于这个 FB。
+- **`RenamePlcObject`**：改块名 / 块号、数据类型名、变量表名、监控表名、设备名。先查重名；块开着
+  自动编号时改号会如实拒绝（Openness 关不掉自动编号）；改 DB 名会提醒 HMI 侧按符号绑定的变量会断链。
+- **`CompileHardware`**：编译一台设备的硬件组态（模块、地址、网络、固件），返回 TIA 的错误 / 警告——
+  `CompileSoftware` 只编程序，插模块、改地址之后用它查硬件问题。
+- **`ArchiveProject`**：把打开的工程归档成一个 `.zap21` / `.zap20` 文件（备份、交接）。有未保存改动时
+  拒绝（引擎不替用户保存）；同名归档不覆盖。
+
+### 修复
+
+- **经典面板上调 `EnsureUnifiedHmiConnection` 只报 `Create(string) not found on ...ConnectionComposition`（#13 实测）。**
+  现在直接说明：这是经典 WinCC 面板（精简 / 精智），Openness 建不了经典 HMI 连接，要在博途界面里建一次；
+  这个工具只用于 WinCC Unified 面板。
+- **V20 上导入 HMI 画面 / HMI 变量表 / HMI 连接 / 工艺对象 XML 会因版本头失败。** 这 4 个导入入口没像块、
+  数据类型、PLC 变量表那样先把 `<Engineering version="V21" />` 改成当前博途版本、补 UTF-8 BOM，
+  而引擎自己生成的 HMI XML 就写着 V21 头。现在 4 个入口都先做这一步（来源：fork GabrielSRR ffebe6e 指出）。
+- **`Bootstrap` 和 `RunCapabilitySelfTest` 标称只读，却可能弹 UAC 把当前用户加进 Openness 组。**
+  两者调用的组检查在「不在组里」时会自动加组。现在只查不改；要加组请用 `EnsureOpennessUserGroup`
+  或 `Doctor`（fix=true）（来源：fork yaorb a0eeb38 指出）。
+
 ## [2.7.5] - 2026-10-14 - 连接失败说清原因、CLI 参数顺序、Unified 连接不再假成功
 
 ### 修复

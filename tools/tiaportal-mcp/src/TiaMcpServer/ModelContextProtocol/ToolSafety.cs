@@ -37,6 +37,7 @@ namespace TiaMcpServer.ModelContextProtocol
         {
             "DownloadToPlc", "GoOnline", "SetWatchTableModifyValue",
             "DeletePlcBlock", "DeletePlcType", "DeletePlcTagTable", "DeletePlcExternalSource",
+            "DeletePlcTag", "DeletePlcWatchTable", "DeleteDevice",
         };
 
         public static IReadOnlyCollection<string> DirectOnlyTools => DirectOnly;

@@ -1,8 +1,8 @@
 {
   "package": "TIA_MCP_Delivery_v2.7.5",
-  "generatedAt": "2026-10-14T22:02:18.501007+08:00",
+  "generatedAt": "2026-10-22T12:32:42.531265+08:00",
   "source": "live MCP tools/list of TiaMcpServer.exe",
-  "toolCount": 224,
+  "toolCount": 235,
   "note": "Full roster (--profile full). The default lite profile lists only the core tools; the rest stay reachable via FindTools + CallTool. Runtime tools/list remains authoritative.",
   "tools": [
     {
@@ -132,6 +132,19 @@
         "themeJson"
       ],
       "description": "[L2][HMI-Unified] Apply a theme/palette to a real Unified HMI screen through ApplyUnifiedHmiScreenDesignJson. Requires a connected TIA project; verify with DescribeHmiScreenItem/readback before saving."
+    },
+    {
+      "name": "ArchiveProject",
+      "layer": "L1",
+      "domain": "Project",
+      "method": "ArchiveProject",
+      "returnType": "",
+      "parameters": [
+        "targetDirectory",
+        "archiveName",
+        "mode"
+      ],
+      "description": "[L1][Project] Archive the open project into one file (.zap20/.zap21, TIA 'Archive...') for backup or hand-over; the project itself is unchanged. Must be saved first (unsaved changes are refused - SaveProject; the engine never saves on its own). mode: compressed (default) | none | discard | discardcompressed. Existing archives are never overwritten."
     },
     {
       "name": "AttachDeviceNodeToSubnet",
@@ -477,6 +490,17 @@
       "description": "[L1][PLC-Software] PREFERRED compile tool. Compiles PLC and returns structured errors/warnings by recursively walking CompilerResult.Messages (V20/V21 PublicAPI). Leaf diagnostics include Path + Description; optional Line/Column via GetAttribute when exposed. Requires: Connect + OpenProject."
     },
     {
+      "name": "CompileHardware",
+      "layer": "L2",
+      "domain": "Hardware",
+      "method": "CompileHardware",
+      "returnType": "",
+      "parameters": [
+        "devicePath"
+      ],
+      "description": "[L2][Hardware] Compile the HARDWARE configuration of one device (modules, addresses, network, firmware) and return TIA's errors/warnings - CompileSoftware / CompileAndDiagnosePlc do not cover this; use after PlugDeviceItem, IO-address or network changes. Requires: Connect + OpenProject, and the PLC offline (GoOffline first)."
+    },
+    {
       "name": "CompileSoftware",
       "layer": "L1",
       "domain": "PLC-Software",
@@ -568,6 +592,21 @@
       "description": "[L2][VersionControl] Put a WHOLE project under version control automatically - no TIA UI clicks. Walks the project tree, asks every object whether VCI can map it (Workspace.GetSupportedFileFormats) and maps each supported object with Workspace.ConnectObject. COARSE-FIRST: when a device or PLC software object is mappable as one unit it is mapped whole and its children are not visited, so you get the fewest mappings that still cover everything. Objects VCI does not support (typically hardware configuration) are reported, never silently dropped. DEFAULTS TO dryRun=true: the default call only reports what it WOULD map. After a real run call SyncVersionControlWorkspace(ProjectToWorkspace, dryRun=false), then git commit."
     },
     {
+      "name": "CreateInstanceDB",
+      "layer": "L2",
+      "domain": "PLC-Software",
+      "method": "CreateInstanceDB",
+      "returnType": "",
+      "parameters": [
+        "softwarePath",
+        "fbName",
+        "dbName",
+        "dbNumber",
+        "groupPath"
+      ],
+      "description": "[L2][PLC-Software] Create a single-instance DB (背景 DB) for an existing FB directly - no XML, no dummy call. dbName defaults to '<FB>_DB'; dbNumber 0 = auto; groupPath = existing block group. Read back incl. InstanceOfName (Data.verified). Then call the FB with it, CompileAndDiagnosePlc and SaveProject."
+    },
+    {
       "name": "CreatePlcBlockGroup",
       "layer": "L2",
       "domain": "PLC-Software",
@@ -578,6 +617,32 @@
         "groupPath"
       ],
       "description": "[L2][PLC-Software] Create a (nested) program-block group/folder, creating any missing parent groups along the path. Idempotent — returns ok if the group already exists. groupPath uses '/' separators relative to 'Program blocks' root, e.g. '01_手动控制/手动意图'. Requires: Connect + OpenProject. Use this to set up the 手动/手自动接口/自动 layer folders, then MoveBlockToGroup to organize blocks into them."
+    },
+    {
+      "name": "CreatePlcTagTable",
+      "layer": "L2",
+      "domain": "PLC-Software",
+      "method": "CreatePlcTagTable",
+      "returnType": "",
+      "parameters": [
+        "softwarePath",
+        "tagTableName",
+        "groupPath"
+      ],
+      "description": "[L2][PLC-Software] Create one EMPTY PLC tag table (变量表), optionally inside an existing tag-table group. Names are unique per PLC; a clash is refused. Then fill it tag by tag with SetPlcTag (tagTableName = this table), or import a whole table with ImportPlcTagTable. Requires: Connect + OpenProject (or AttachToOpenProject). Afterwards SaveProject."
+    },
+    {
+      "name": "CreatePlcWatchTable",
+      "layer": "L2",
+      "domain": "PLC-Software",
+      "method": "CreatePlcWatchTable",
+      "returnType": "",
+      "parameters": [
+        "softwarePath",
+        "watchTableName",
+        "groupPath"
+      ],
+      "description": "[L2][PLC-Software] Create one EMPTY watch table (监控表), optionally inside an existing watch-table group. A name clash is refused. Entries with a modify value go in with SetWatchTableModifyValue; plain monitor rows are added in the TIA UI. Requires: Connect + OpenProject (or AttachToOpenProject). Afterwards SaveProject."
     },
     {
       "name": "CreateProject",
@@ -603,6 +668,18 @@
         "folderPath"
       ],
       "description": "[L2][VersionControl] Create a VCI workspace pointing at a folder on disk — normally the working tree of a Git repository, so every synchronized export lands where Git can commit it. Creating the workspace does NOT map any objects into it — call ConnectProjectToWorkspace afterwards to map the whole project (or one device) automatically. Requires TIA V21+ and an open project."
+    },
+    {
+      "name": "DeleteDevice",
+      "layer": "L2",
+      "domain": "Hardware",
+      "method": "DeleteDevice",
+      "returnType": "",
+      "parameters": [
+        "devicePath",
+        "dryRun"
+      ],
+      "description": "[L2][Hardware][Destructive] Preview or delete ONE device / station (PLC, HMI, IO device, drive). Defaults to dryRun=true = lists the device, its modules and software (block count), deletes nothing. Give the device name or its CPU/head-module name; a module name is refused. DANGER: deleting a PLC deletes its whole program; network, IO-system, S7 and HMI connections to it are cut. Verified after delete; then SaveProject."
     },
     {
       "name": "DeleteExport",
@@ -641,6 +718,20 @@
       "description": "[L2][PLC-Software]Delete a PLC external source by name so ImportPlcExternalSource can replace it (idempotent). Name may include or omit .scl."
     },
     {
+      "name": "DeletePlcTag",
+      "layer": "L2",
+      "domain": "PLC-Software",
+      "method": "DeletePlcTag",
+      "returnType": "",
+      "parameters": [
+        "softwarePath",
+        "tagName",
+        "tagTableName",
+        "dryRun"
+      ],
+      "description": "[L2][PLC-Software][Destructive] Preview or delete ONE PLC tag. Defaults to dryRun=true (shows name/type/address/comment). DANGER: code using the symbol falls back to the absolute address or stops compiling, HMI bindings by name break silently, the comment is lost. Verified after delete; then CompileAndDiagnosePlc + SaveProject."
+    },
+    {
       "name": "DeletePlcTagTable",
       "layer": "L2",
       "domain": "PLC-Software",
@@ -665,6 +756,19 @@
         "dryRun"
       ],
       "description": "[L2][PLC-Software][Destructive] Preview or delete ONE PLC user data type (UDT / PlcType) by its exact path. Defaults to dryRun=true. Deleting a UDT breaks every DB and block interface declared with it, so the preview reports its cross references (GetCrossReferences works at type level) before you commit - review them first. Regex and wildcards are rejected. Export the type first with ExportType, and CompileSoftware afterwards."
+    },
+    {
+      "name": "DeletePlcWatchTable",
+      "layer": "L2",
+      "domain": "PLC-Software",
+      "method": "DeletePlcWatchTable",
+      "returnType": "",
+      "parameters": [
+        "softwarePath",
+        "watchTableName",
+        "dryRun"
+      ],
+      "description": "[L2][PLC-Software][Destructive] Preview or delete ONE watch table. Defaults to dryRun=true (path and entry count). Affects commissioning only, not the program - but entries, modify values and comments are lost (ExportPlcWatchTable first). Verified after delete; then SaveProject."
     },
     {
       "name": "DescribeBlockLogic",
@@ -1652,6 +1756,22 @@
       "description": "[L2][Online-Monitoring] Read-only: read the CPU operating mode (RUN / STOP / UNKNOWN) over the S7 protocol (port 102) — something TIA Openness cannot do. Also returns the CPU clock and a best-effort raw diagnostic-buffer dump (event IDs in hex + raw bytes; full event text needs TIA's text database, and SZL may be unavailable on some S7-1200 CPUs — reported cleanly). Never writes/forces/changes mode."
     },
     {
+      "name": "GetPlcTags",
+      "layer": "L1",
+      "domain": "PLC-Software",
+      "method": "GetPlcTags",
+      "returnType": "",
+      "parameters": [
+        "softwarePath",
+        "tagTableName",
+        "nameFilter",
+        "addressFilter",
+        "includeConstants",
+        "maxTags"
+      ],
+      "description": "[L1][PLC-Software][READ-ONLY] List PLC tags (name, type, address, comment, HMI flags) without an XML export. Filter by table, name substring and/or address prefix ('%Q' = every output). includeConstants adds user constants. Use to find what sits on an address or which addresses are free. Capped by maxTags (default 300, Meta.truncated). Requires: Connect + OpenProject (or AttachToOpenProject)."
+    },
+    {
       "name": "GetPlcTagTables",
       "layer": "L2",
       "domain": "PLC-Software",
@@ -2437,6 +2557,21 @@
       "description": "[L2][Reports]Rebuild diagnostics, runbook, and manifest files from an existing OfflineReleaseValidationSuite JSON report. Offline-only and does not connect to TIA Portal."
     },
     {
+      "name": "RenamePlcObject",
+      "layer": "L2",
+      "domain": "PLC-Software",
+      "method": "RenamePlcObject",
+      "returnType": "",
+      "parameters": [
+        "kind",
+        "objectPath",
+        "newName",
+        "newNumber",
+        "softwarePath"
+      ],
+      "description": "[L2][PLC-Software] Rename a PLC block (and/or renumber), a UDT, a tag table, a watch table or a device; kind = block | type | tagtable | watchtable | device. Clashes refused first; read back (Data.verified). TIA updates calls in the project; exported files, HMI scripts and hard-coded DB numbers do not follow. V20 cannot rename watch tables. Then CompileAndDiagnosePlc + SaveProject."
+    },
+    {
       "name": "RepairAndReimportBlock",
       "layer": "L2",
       "domain": "PLC-Software",
@@ -2698,6 +2833,24 @@
         "interfaceType"
       ],
       "description": "[L2][Category:PLC-OpcUA][PreCondition:Connect+OpenProject] Enable or disable an OPC UA server interface, SIMATIC interface, or reference namespace. Setting Enabled=true activates the interface — download to PLC is required for the change to take effect on the CPU. interfaceType options: 'ServerInterface' (default), 'SimaticInterface', 'ReferenceNamespace'. Workflow: GetOpcUaConfig → SetOpcUaInterfaceEnabled → DownloadToPlc."
+    },
+    {
+      "name": "SetPlcTag",
+      "layer": "L2",
+      "domain": "PLC-Software",
+      "method": "SetPlcTag",
+      "returnType": "",
+      "parameters": [
+        "softwarePath",
+        "tagName",
+        "tagTableName",
+        "newName",
+        "dataType",
+        "address",
+        "comment",
+        "commentLanguage"
+      ],
+      "description": "[L2][PLC-Software] Create or modify ONE PLC tag in place. Existing tag (any table): change newName / dataType / address / comment; omitted fields stay. Missing tag: created in tagTableName with dataType + address. Tag names are unique per PLC; a clash is refused. Read back (Data.verified); warns when the address is shared. Requires: Connect + OpenProject (or AttachToOpenProject). Then CompileAndDiagnosePlc + SaveProject."
     },
     {
       "name": "SetPutGetAccess",
