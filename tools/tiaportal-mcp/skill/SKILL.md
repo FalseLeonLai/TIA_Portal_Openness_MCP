@@ -386,12 +386,13 @@ The non-standard binding users complain about comes from skipping these:
    `HMI_Connection_1` (Classic) auto-selects the PLC driver from the CPU
    `TypeIdentifier` (S7-1200/1500 vs 300/400). Never hand-name a driver; never
    point two tag tables at different ad-hoc connection names.
-2. **Absolute address on an Openness-made connection.** `EnsureUnifiedHmiConnection`
-   can only create a **non-integrated** connection (`Partner/Station/Node` are read-only
-   in Openness), and symbolic binding (`plcTag` = `Conveyor.Start`) fails on it. Bind with
-   `address` (`%DB100.DBX0.0`) against a **non-optimized** DB. Symbolic binding is only
-   possible on an integrated connection the user creates in the TIA GUI
-   (Devices & networks → Connections); then pass that connection's name.
+2. **Integrated on V21, absolute on V20.** On TIA V21 `EnsureUnifiedHmiConnection`
+   creates the connection through the hardware connection API: on Unified panels it is
+   **integrated**, so symbolic binding (`plcTag` = `Conveyor.Start`) works; it also works on
+   classic panels (classic tags still need absolute addresses). Connect both devices to the
+   same subnet first. On TIA V20 the connection is **non-integrated** (`Partner/Station/Node`
+   are read-only) — bind with `address` (`%DB100.DBX0.0`) against a **non-optimized** DB, or
+   use an integrated connection the user creates in the TIA GUI and pass its name.
 3. **Acquisition cycle 100 ms** for interactive controls; slower (1 s) for
    read-only displays — don't leave everything on the default.
 4. The PLC tag/DB member **must exist before** the HMI tag binds to it, or the

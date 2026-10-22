@@ -2748,23 +2748,53 @@ namespace TiaMcpServer.Siemens
         public ModelContextProtocol.ResponseObjectDescribe EnsureUnifiedHmiConnection(string hmiSoftwarePath, string connectionName = "HMI_Connection_1", string plcName = "PLC_1")
         {
             var sw = ResolveHmiSoftwareOrThrow(hmiSoftwarePath);
+            // 经典 WinCC 面板（精简 / 精智，含二代）：软件层 ConnectionComposition 没有 Create。
+            // V21 走硬件层接口建得出来（issue #13 用户指出、真机复现）；V20 没有那个接口。
+            var isClassic = string.Equals(sw.GetType().Name, "HmiTarget", StringComparison.Ordinal);
+#if !TIA_V20
+            if (isClassic) return EnsureClassicHmiConnection(hmiSoftwarePath, connectionName, plcName);
+#endif
             var connections = TryGetPropertyValue(sw, "Connections");
             if (connections == null) throw new InvalidOperationException($"Connections collection not found on HMI software '{hmiSoftwarePath}'.");
 
             // 去掉 ?? TryFindByNameInCollection(connections, Array.Empty<string>(), ...)：空 hints 恒返回 null。
             var connection = FindExistingByName(connections, connectionName);
             var created = false;
+            var hwNote = string.Empty;
+#if !TIA_V20
+            if (connection == null)
+            {
+                // 先走硬件层：建出来是集成连接（Partner 有值，符号绑定可用）。建不成退回软件层（非集成），原因写进消息。
+                var hw = TryCreateHardwareHmiConnection(hmiSoftwarePath, plcName, connectionName);
+                if (hw.Created)
+                {
+                    connection = FindExistingByName(connections, connectionName);
+                    if (connection == null)
+                        throw new InvalidOperationException($"HMI connection to '{plcName}' was created through the hardware connection API ({hw.Readback}), "
+                            + $"but '{connectionName}' does not show up in the HMI software's connections{(hw.Error != null ? ": " + hw.Error : "")}.");
+                    created = true;
+                    hwNote = $"Created through the TIA V21 hardware connection API ({hw.Readback}). ";
+                }
+                else
+                {
+                    var existing = connections is IEnumerable en ? en.Cast<object>().Select(c => TryGetName(c) ?? string.Empty).ToList() : new List<string>();
+                    hwNote = "Hardware-level create failed, fell back to a software-level connection: "
+                        + HmiConnectionSpec.HardwareCreateFailed(hmiSoftwarePath, plcName, hw.Error ?? "unknown", existing) + " ";
+                }
+            }
+#else
+            if (connection == null && isClassic) throw new InvalidOperationException(HmiConnectionSpec.ClassicPanelOnV20(hmiSoftwarePath));
+#endif
             if (connection == null)
             {
                 var create = connections.GetType().GetMethod("Create", new[] { typeof(string) });
-                if (create == null && string.Equals(sw.GetType().Name, "HmiTarget", StringComparison.Ordinal))
-                    // 经典 WinCC 面板（精简 / 精智，含二代）：ConnectionComposition 没有 Create —— Openness 建不出经典连接（issue #13 实测）。
-                    throw new InvalidOperationException(
-                        $"'{hmiSoftwarePath}' is a classic WinCC panel (Basic/Comfort), not WinCC Unified, and Openness cannot create classic HMI connections "
-                        + "(the classic ConnectionComposition has no Create). Create the connection once in the TIA UI (Devices & networks → HMI connection); "
-                        + "EnsureUnifiedHmiConnection only works on WinCC Unified panels. Nothing was changed.");
                 if (create == null) throw new InvalidOperationException($"Create(string) not found on {connections.GetType().FullName}.");
-                connection = InvokeCreate(create, connections, new object[] { connectionName });
+                try { connection = InvokeCreate(create, connections, new object[] { connectionName }); }
+                // 硬件层的失败原因（常见：同一对设备已有连接）比软件层那句 "Error when calling method 'Create'" 有用得多，别丢。
+                catch (Exception ex) when (hwNote.Length > 0)
+                {
+                    throw new InvalidOperationException(hwNote + $"The software-level create failed too: {(ex.InnerException ?? ex).Message}", ex);
+                }
                 created = true;
             }
 
@@ -2790,7 +2820,8 @@ namespace TiaMcpServer.Siemens
                 ObjectPath = $"{hmiSoftwarePath}:{connectionName}",
                 TypeName = connection.GetType().FullName,
                 Members = DescribeMembers(connection, 220),
-                Message = $"HMI connection '{connectionName}' {state} ({(runtime.Integrated ? "integrated" : "NON-integrated: bind HMI tags by absolute address")}). "
+                Message = $"HMI connection '{connectionName}' {state} ({(runtime.Integrated ? "integrated: symbolic plcTag binding works" : "NON-integrated: bind HMI tags by absolute address")}). "
+                    + hwNote
                     + $"Runtime: {string.Join("; ", runtime.Notes)}. TargetPlc(inferred, not a readback)={partner.Summary}; "
                     + $"Readback: {SummarizeHmiObjectReadback(connection, "Name", "CommunicationDriver", "DisabledAtStartup", "Partner", "Station", "Node", "InitialAddress", "PlcName", "ControllerName", "PartnerName")}"
             };

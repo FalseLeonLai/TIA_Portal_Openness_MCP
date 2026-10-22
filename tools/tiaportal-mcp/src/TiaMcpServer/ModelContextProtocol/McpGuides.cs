@@ -147,7 +147,7 @@ Order matters: create/complete the PLC side FIRST (tags/DB must exist), then HMI
 - Buttons: EnsureUnifiedHmiButtonAction / EnsureUnifiedHmiButtonEventHandler for press handlers.
 - HMI software path is usually 'HMI_RT_1'; ScaffoldProject auto-resolves it.
 - These tools verify after write (AbsoluteVerified in the response) — check it instead of re-reading.
-- CLASSIC/Comfort/Basic panels (KTP Basic, TP/KTP Comfort) CANNOT get their PLC connection created via Openness on this build (CommunicationConnections is not exposed). Prefer a WinCC Unified panel. If a classic panel is mandatory, the only automatable path is to import the HMI TAG TABLE with ABSOLUTE addressing: AddressAccessMode=Absolute, LogicalAddress=%DB1.DBX36.0 + the Connection name, and NO ControllerTag (a symbolic tag on a connection with no integrated partner resolves to 'controller tag not found'). The source DB must be non-optimized.",
+- CLASSIC/Comfort/Basic panels (KTP Basic, TP/KTP Comfort): on TIA V21 EnsureUnifiedHmiConnection creates their PLC connection too (hardware connection API; both devices on the same subnet); on TIA V20 it has to be made in the TIA GUI. Prefer a WinCC Unified panel. For classic tags the only automatable path is to import the HMI TAG TABLE with ABSOLUTE addressing: AddressAccessMode=Absolute, LogicalAddress=%DB1.DBX36.0 + the Connection name, and NO ControllerTag (a symbolic tag on a connection with no integrated partner resolves to 'controller tag not found'). The source DB must be non-optimized.",
 
             ["errors"] =
 @"COMMON ERRORS → EXACT FIX (all seen on real machines):

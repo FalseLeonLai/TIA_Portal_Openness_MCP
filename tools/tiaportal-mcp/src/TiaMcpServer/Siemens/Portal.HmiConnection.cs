@@ -55,17 +55,17 @@ namespace TiaMcpServer.Siemens
                 r.Notes.Add("DisabledAtStartup=False");
             }
 
-            // 集成与否（Partner/Station/Node 在 V20/V21 Openness 里只读，软件侧建出来的恒为空）
+            // 集成与否（Partner/Station/Node 只读；软件侧建出来的恒为空，V21 硬件层建出来的有值）
             var partnerBack = TryGetPropertyValue(connection, "Partner")?.ToString();
             r.Integrated = !string.IsNullOrWhiteSpace(partnerBack);
             r.Notes.Add(r.Integrated
                 ? $"集成连接：Partner={partnerBack}、Station={TryGetPropertyValue(connection, "Station")}（读回值，请核对是不是目标 PLC）"
-                : "非集成连接（Partner/Station/Node 为空 —— 它们在 Openness 里只读，本工具建不出集成伙伴）："
+                : "非集成连接（Partner/Station/Node 为空）："
                   + "HMI 变量只能用 address 绝对地址绑定（非优化 DB），按 PLC 符号绑定会失败；"
-                  + "要符号绑定，请在博途「设备和网络 → 连接」里手动建集成连接，再把那条连接的名字传给变量工具");
+                  + "要符号绑定需要集成连接：TIA V21 上删掉这条连接、两端连到同一子网后重跑本工具即可建出（V20 只能在博途「设备和网络 → 连接」里手动建）");
             if (r.Integrated)
             {
-                // 集成连接（只能是用户在博途里建的）的地址跟着伙伴组态走：不去改写，免得把一条好连接改坏或误判成失败。
+                // 集成连接（V21 硬件层或博途界面建的）的地址跟着伙伴组态走：不去改写，免得把一条好连接改坏或误判成失败。
                 r.PeerAddressUnknown = true;
                 r.Notes.Add($"集成连接的地址由博途按伙伴组态管理，本工具未改写：InitialAddress={TryGetPropertyValue(connection, "InitialAddress")}");
                 return r;

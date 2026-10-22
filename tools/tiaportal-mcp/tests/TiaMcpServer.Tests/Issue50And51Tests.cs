@@ -82,6 +82,33 @@ namespace TiaMcpServer.Tests
             check(pick.PlcIp == null && pick.Reason != null, "[哨兵] PLC 两个 IP 又无共同子网：答不上来，不许瞎挑");
             pick = HmiConnectionSpec.PickPeerAddresses(Enumerable.Empty<HmiConnectionSpec.NodeInfo>(), hmiNodes);
             check(pick.PlcIp == null && pick.Reason != null, "[哨兵] PLC 没读到节点：答不上来并说明原因");
+
+            // ---- #13 V21 硬件层建连接：两端节点要挂在同一子网 ----
+            NodeInfoList N(params (string a, string s)[] xs) => new NodeInfoList(xs.Select(x => new HmiConnectionSpec.NodeInfo { Address = x.a, Subnet = x.s }));
+            var pair = HmiConnectionSpec.PickSharedSubnetPair(N(("10.0.1.1", "PN_B"), ("10.0.0.1", "PN_A")), N(("10.0.0.3", "PN_A")));
+            check(pair.Plc == 1 && pair.Hmi == 0 && pair.Reason == null, "同一子网上的那一对：挑第二个 PLC 口，实得 " + pair);
+            pair = HmiConnectionSpec.PickSharedSubnetPair(N(("10.0.0.1", "PN_A")), N(("10.0.0.3", "")));
+            check(pair.Plc < 0 && (pair.Reason ?? "").Contains("HMI") && (pair.Reason ?? "").Contains("ConnectDeviceNodesToProfinetSubnet"), "[哨兵] HMI 没组网：拒绝并指明下一步，实得 " + pair.Reason);
+            pair = HmiConnectionSpec.PickSharedSubnetPair(N(("10.0.0.1", "")), N(("10.0.0.3", "PN_A")));
+            check(pair.Plc < 0 && (pair.Reason ?? "").Contains("PLC"), "[哨兵] PLC 没组网：拒绝，实得 " + pair.Reason);
+            pair = HmiConnectionSpec.PickSharedSubnetPair(N(("10.0.0.1", "PN_A")), N(("10.0.0.3", "PN_B")));
+            check(pair.Plc < 0 && (pair.Reason ?? "").Contains("PN_A") && (pair.Reason ?? "").Contains("PN_B"), "[哨兵] 两条不同子网：拒绝并列出两边子网，实得 " + pair.Reason);
+            pair = HmiConnectionSpec.PickSharedSubnetPair(N(("10.0.0.1", "")), N(("10.0.0.3", "")));
+            check(pair.Plc < 0 && pair.Reason != null, "[哨兵] 两端都没组网：空子网名不算同一子网，实得 " + pair);
+            pair = HmiConnectionSpec.PickSharedSubnetPair(N(), N(("10.0.0.3", "PN_A")));
+            check(pair.Plc < 0 && pair.Reason != null, "[哨兵] PLC 无以太网口：拒绝");
+
+            var hwMsg = HmiConnectionSpec.HardwareCreateFailed("HMI_RT_1", "PLC_1", "Error when calling method 'Create'", new[] { "HMI_Connection_1" });
+            check(hwMsg.Contains("HMI_Connection_1") && hwMsg.Contains("reuse"), "HMI 上已有连接时点明它挡住了第二条，实得 " + hwMsg);
+            hwMsg = HmiConnectionSpec.HardwareCreateFailed("HMI_RT_1", "PLC_1", "x", new[] { "", " " });
+            check(!hwMsg.Contains("already has"), "没有现成连接时不提「已有连接」");
+            check(HmiConnectionSpec.ClassicPanelOnV20("HMI_RT_2").Contains("V21") && !HmiConnectionSpec.ClassicPanelOnV20("HMI_RT_2").Contains("cannot create classic HMI connections (the classic"),
+                "V20 经典屏报错指向 V21，不再说「Openness 建不了经典连接」");
+        }
+
+        private sealed class NodeInfoList : List<HmiConnectionSpec.NodeInfo>
+        {
+            public NodeInfoList(IEnumerable<HmiConnectionSpec.NodeInfo> xs) : base(xs) { }
         }
     }
 }
