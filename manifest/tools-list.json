@@ -1,6 +1,6 @@
 {
-  "package": "TIA_MCP_Delivery_v2.7.5",
-  "generatedAt": "2026-10-22T12:32:42.531265+08:00",
+  "package": "TIA_MCP_Delivery_v2.7.6",
+  "generatedAt": "2026-10-22T12:58:26.157012+08:00",
   "source": "live MCP tools/list of TiaMcpServer.exe",
   "toolCount": 235,
   "note": "Full roster (--profile full). The default lite profile lists only the core tools; the rest stay reachable via FindTools + CallTool. Runtime tools/list remains authoritative.",
