@@ -3,6 +3,9 @@
 > 状态：**编译通过 + 核心链路真机验证通过**（2026-10-25，TIA Portal V19 + S7-1200 1211C）。
 > 已验证：连接 → 建项目 → 加 PLC → 建 GlobalDB → 建变量表 → 编译 0 错误 → 保存。
 > 未验证：HMI（经典 / Unified）、SCL 源导入、LAD 文档导入（V19 无此 API）。
+>
+> **给 AI agent**：先读 [`docs/AGENT_COOKBOOK.md`](docs/AGENT_COOKBOOK.md)（决策表 / 黄金路径 / 参数规则 / token 纪律），
+> 经验库在 [`docs/AGENT_LEARNINGS.md`](docs/AGENT_LEARNINGS.md)；每完成一次任务按第 8 节追加一行。
 
 ## 这是什么
 
