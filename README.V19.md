@@ -69,9 +69,9 @@ NuGet 包本身**不含** Openness DLL，编译时从 `SiemensEngineeringDirecto
 ## 运行
 
 ```bat
-tia-v19.cmd version
-tia-v19.cmd describe
-tia-v19.cmd --help
+tia-v19.cmd version      :: 打印版本（不需要 TIA 在运行）
+tia-v19.cmd help         :: 命令用法
+tia-v19.cmd schema       :: spec 字段说明（离线）
 ```
 
 MCP 客户端配置（Cursor / VS Code / Claude Desktop）：
