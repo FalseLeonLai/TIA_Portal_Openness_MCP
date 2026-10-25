@@ -359,14 +359,17 @@ namespace TiaMcpServer.Siemens
                     
                     var hasBlocks = plcSoftware.BlockGroup != null;
                     var hasTypes = plcSoftware.TypeGroup != null;
-                    
+                    // Software units are only reachable through PlcUnitProvider; list each unit's blocks under
+                    // "Software units/<unit>", the same prefix the block tools accept (#55).
+                    var units = GetPlcUnits(plcSoftware, out _).Where(u => u.BlockGroup != null).ToList();
+
                     // Add blocks section
                     if (hasBlocks)
                     {
                         var blockGroup = plcSoftware.BlockGroup;
                         if (blockGroup != null)
                         {
-                            sections.Add(() => GetSoftwareTreeBlockGroup(sb, blockGroup, ancestorStates, "Program blocks", !hasTypes));
+                            sections.Add(() => GetSoftwareTreeBlockGroup(sb, blockGroup, ancestorStates, "Program blocks", !hasTypes && units.Count == 0));
                         }
                     }
                     
@@ -376,10 +379,17 @@ namespace TiaMcpServer.Siemens
                         var typeGroup = plcSoftware.TypeGroup;
                         if (typeGroup != null)
                         {
-                            sections.Add(() => GetSoftwareTreeTypeGroup(sb, typeGroup, ancestorStates, "PLC data types", true));
+                            sections.Add(() => GetSoftwareTreeTypeGroup(sb, typeGroup, ancestorStates, "PLC data types", units.Count == 0));
                         }
                     }
-                    
+
+                    for (int u = 0; u < units.Count; u++)
+                    {
+                        var unit = units[u];
+                        var isLast = u == units.Count - 1;
+                        sections.Add(() => GetSoftwareTreeBlockGroup(sb, unit.BlockGroup, ancestorStates, $"{SoftwareUnitsRoot}/{unit.Name}", isLast));
+                    }
+
                     
                     // Execute sections
                     for (int i = 0; i < sections.Count; i++)
@@ -1160,6 +1170,17 @@ namespace TiaMcpServer.Siemens
                      groupNames[0].Equals("程序块", StringComparison.OrdinalIgnoreCase)))
                 {
                     startIndex = 1;
+                }
+                // "Software units/<unit>/..." starts in that unit's own block group (#55). Only when the
+                // unit exists: a plain group that happens to be called "Software units" still resolves below.
+                else if (groupNames.Length > 1 && IsSoftwareUnitsSegment(groupNames[0]))
+                {
+                    var unit = GetPlcUnits(plcSoftware, out _).FirstOrDefault(u => u.Name.Equals(groupNames[1], StringComparison.OrdinalIgnoreCase));
+                    if (unit?.BlockGroup != null)
+                    {
+                        currentGroup = unit.BlockGroup;
+                        startIndex = 2;
+                    }
                 }
 
                 for (var i = startIndex; i < groupNames.Length; i++)
@@ -2034,7 +2055,13 @@ namespace TiaMcpServer.Siemens
             {
                 return new ModelContextProtocol.ResponseObjectValue
                 {
-                    Message = "Method not allowed (read-only mode)",
+                    // Per-call gate only. The old text "read-only mode" read like an engine-wide mode and sent a
+                    // user (#55) looking for a setting that was not the cause.
+                    Message = $"Method '{methodName}' was NOT invoked: this call has allowWrite=false, and with allowWrite=false only " +
+                              "ToString / GetAttribute / GetAttributes / GetAttributeInfos may be invoked. " +
+                              "This is a per-call restriction of this tool, not an engine-wide read-only mode. " +
+                              "To read a property use GetObjectProperty; for PLC software units use GetSoftwareUnits; " +
+                              "to invoke any other method pass allowWrite=true.",
                     ObjectKind = resultKind,
                     ObjectPath = resultPath
                 };

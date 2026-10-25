@@ -67,5 +67,7 @@
     <Compile Include="..\..\src\TiaMcpServer\Siemens\HmiConnectionSpec.cs" Link="HmiConnectionSpec.cs" />
     <!-- 日常编辑工具的纯逻辑：参数校验、地址规整、组路径、归档文件名、整台设备守卫。 -->
     <Compile Include="..\..\src\TiaMcpServer\Siemens\EverydayEditSpec.cs" Link="EverydayEditSpec.cs" />
+    <!-- #54：Unified 离散报警写入前的预检（触发变量类型 / 位宽 / 同位冲突 / 报警类别）。 -->
+    <Compile Include="..\..\src\TiaMcpServer\Siemens\HmiDiscreteAlarmSpec.cs" Link="HmiDiscreteAlarmSpec.cs" />
   </ItemGroup>
 </Project>

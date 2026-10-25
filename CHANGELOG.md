@@ -1,5 +1,36 @@
 ﻿# Change Log
 
+## [2.7.8] - 2026-10-26 - 读软件单元、Unified 离散报警、反射调用的拒绝文字说清楚
+
+工具数 235 → 238；精简档不变（新工具用 FindTools 找、CallTool 调）。
+
+### 新增
+
+- **`GetSoftwareUnits`（#55，感谢 @BoykaHe 的详细报告）**：列出 S7-1500 的软件单元（Software units）和每个单元里的块。
+  Openness 只能经 `PlcUnitProvider.UnitGroup.Units` 拿到单元，原来 `GetSoftwareTree` 和各块工具都看不到单元里的块。
+  - 每个块给出 `Software units/<单元>/<组>/<块>` 形式的路径，`ExportBlock`、`GetBlockInfo`、`DescribeBlockLogic`
+    等块工具直接认这个前缀，不用新参数。
+  - `GetSoftwareTree` 现在也列出各单元的块。
+- **`EnsureUnifiedHmiDiscreteAlarm` / `GetUnifiedHmiDiscreteAlarms`（#54）**：建 / 改 WinCC Unified 离散报警并逐项读回；
+  列出现有报警和工程里实际有的报警类别。写入前先拒掉 TIA 会收下、但编译才报错的输入：触发变量不存在、
+  报警类别不存在、同一变量同一位已被别的报警占用、位号超出变量位宽，以及触发变量的数据类型不对——
+  V21 实测只有 Bool 和位串类型（Byte / Word / DWord / LWord）能当触发变量，整数（Int、UInt、DInt…）和
+  Real、String 都会在 HMI 编译时报 "The data type of the tag is not permitted for this type of alarm"。
+
+### 修复
+
+- **反射调用的拒绝文字（#55）**：`InvokeService` / `InvokeObject` 在 `allowWrite=false` 时拒绝非白名单方法，原来返回
+  「Method not allowed (read-only mode)」，读起来像引擎整体处于只读模式。现在说明这是**这一次调用**的限制、
+  列出 `allowWrite=false` 时能调的方法，并指向 `GetObjectProperty` / `GetSoftwareUnits`。
+
+### 文档
+
+- **`ApplyUnifiedHmiScreenDesignJson` 的字体（#54）**：每个控件可带 `font`，如 `{"Size": 28, "Weight": "Bold"}`
+  （`Weight` / `Name` 用 TIA 的枚举名，如 `Bold`、`SiemensSans`），可用 `GetObjectProperty(propertyPath="Font.Size")` 读回。
+  原来已经支持，只是工具描述里没写。
+- **一次放多个控件（#54）**：`ApplyUnifiedHmiScreenDesignJson` 一次调用放完整个画面（V21 实测 100 个控件约 9 秒，
+  单个控件 0.1–0.3 秒）；逐个调 `EnsureUnifiedHmiScreenItem` 时，每个控件都要多一轮模型往返。
+
 ## [2.7.7] - 2026-10-22 - V21 上经典面板能自动建 HMI 连接，Unified 建出集成连接
 
 工具数不变（235）。只影响 `EnsureUnifiedHmiConnection` 在 TIA V21 上新建连接的方式；V20 行为不变。

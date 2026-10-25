@@ -83,6 +83,7 @@ namespace TiaMcpServer.Tests
 
             Console.WriteLine("== CLI 全局参数前置 / 连接失败带附加经过（#51）+ Unified 连接 IP 改写（#50）==");
             Issue50And51Tests.Run(Check);
+            Issue54Tests.Run(Check);
 
             Console.WriteLine("== 日常编辑工具：参数校验 / 地址 / 组路径 / 归档文件名 / 整台设备守卫 ==");
             EverydayEditSpecTests.Run(Check);
