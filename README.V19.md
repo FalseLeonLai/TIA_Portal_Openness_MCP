@@ -1,6 +1,8 @@
 # TIA Portal V19 引擎（社区移植）
 
-> 状态：**编译通过（0 错误），尚未真机验证**。本文档说明改了什么、怎么构建、怎么验证，以及哪些能力在 V19 上确实不存在。
+> 状态：**编译通过 + 核心链路真机验证通过**（2026-10-25，TIA Portal V19 + S7-1200 1211C）。
+> 已验证：连接 → 建项目 → 加 PLC → 建 GlobalDB → 建变量表 → 编译 0 错误 → 保存。
+> 未验证：HMI（经典 / Unified）、SCL 源导入、LAD 文档导入（V19 无此 API）。
 
 ## 这是什么
 
@@ -93,18 +95,25 @@ TIA 装在默认位置且只装了 V19 时，`--tia-major-version` 可省略（�
 
 按顺序做，前一步不过不要往下走：
 
-1. `tia-v19 version` → 能启动，版本号 2.2.1
-2. 连接 TIA Portal V19（`ConnectPortal`）→ 能拉起/附着 Portal 进程
-3. `CreateProject` → 新建项目成功
-4. 添加 PLC（S7-1200/1500）+ 硬件配置
-5. 建变量表、UDT、GlobalDB
-6. 用 SCL 源码建块 → 导入 → 编译，0 错误
-7. HMI 冒烟：经典面板建画面；Unified 建画面
-8. 调 `ExportAsDocuments` → 应返回 `NotSupportedOnVersion`，而不是崩溃或假成功
+| # | 检查项 | 结果 |
+|---|---|---|
+| 1 | `tia-v19 version` → 能启动，版本 2.2.1.0；自动检测到 19 | ✅ 2026-10-25 |
+| 2 | `--run-capability-self-test --self-test-connect` → Openness 初始化 + `IsConnected=True` | ✅ |
+| 3 | `gen` 最小 spec → `createProject` 成功 | ✅ `V19_Smoke_01.ap19` |
+| 4 | 添加 PLC（S7-1200 1211C，6ES7211-1BE40-0XB0） | ✅ |
+| 5 | 建 GlobalDB + 变量表 | ✅ |
+| 6 | 编译 | ✅ `state=Success errors=0 warnings=0` |
+| 7 | 保存 | ✅ |
+| 8 | SCL 源码导入 | ⬜ 待测 |
+| 9 | HMI 冒烟：经典面板 / Unified 画面 | ⬜ 待测 |
+| 10 | `ExportAsDocuments` → 应返回 `NotSupportedOnVersion` | ⬜ 待测 |
+
+前 7 项在 TIA Portal V19（Windows 虚拟机）+ S7-1200 1211C 上实测通过，整条 `gen` 用了约 1 分钟
+（TIA 已预热的情况下）。
 
 ## 已知限制
 
-- **未真机验证**：目前只保证编译通过，运行时行为需要 Windows + TIA V19 实测
+- **只验证了核心链路**：连接/建项目/加 PLC/建 DB 与变量表/编译/保存已实测；HMI、SCL 导入、在线监控等尚未验证
 - 基线是 `v19` 分支的 2.2.1（189 工具），**不含** master 2.7.7 的 99 个提交和后续新增工具
 - 4 个文档工具不可用（V19 无此 API）
 - V19 的 Openness 是单体 `Siemens.Engineering.dll`（V21 起才拆分为多个 DLL），升级上游代码时注意这个差异
