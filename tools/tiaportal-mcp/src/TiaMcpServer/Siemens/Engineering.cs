@@ -12,6 +12,14 @@ namespace TiaMcpServer.Siemens
     {
         public static int TiaMajorVersion { get; set; }
 
+        // Fallback when no TIA installation can be detected. One place, so the V19 build does not
+        // silently default to 21 and then fail every Openness call at runtime.
+#if TIA_V19
+        public const int DefaultTiaMajorVersion = 19;
+#else
+        public const int DefaultTiaMajorVersion = 21;
+#endif
+
         // Optional explicit override (CLI --tia-portal-location), e.g. D:\app\TIA20\Portal V20.
         // Takes precedence over TiaPortalLocation env var and registry lookup.
         public static string? TiaPortalLocationOverride { get; set; }

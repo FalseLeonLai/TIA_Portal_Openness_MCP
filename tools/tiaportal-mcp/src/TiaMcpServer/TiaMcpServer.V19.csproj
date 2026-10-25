@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>Latest</LangVersion>
+    <OutputType>Exe</OutputType>
+    <AssemblyVersion>2.2.1</AssemblyVersion>
+    <AssemblyName>TiaMcpServer</AssemblyName>
+    <BaseOutputPath>.\bin-v19</BaseOutputPath>
+    <BaseIntermediateOutputPath>.\obj-v19\</BaseIntermediateOutputPath>
+    <PlatformTarget>x64</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    <DefineConstants>$(DefineConstants);TIA_V19</DefineConstants>
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj\**;obj-v19\**;bin\**;bin-v19\**</DefaultItemExcludes>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0-preview.4.25258.110" />
+    <PackageReference Include="ModelContextProtocol" Version="0.3.0-preview.4" />
+    <PackageReference Include="YamlDotNet" Version="13.7.1" />
+    <PackageReference Include="Sharp7" Version="1.1.84" />
+    <PackageReference Include="Workstation.UaClient" Version="3.2.3" />
+    <PackageReference Include="Siemens.Collaboration.Net.OperatingSystem.Windows" Version="3.0.1725521661" />
+    <PackageReference Include="Siemens.Collaboration.Net.TiaPortal.Openness.Resolver" Version="1.1.1725480302" />
+    <PackageReference Include="Siemens.Collaboration.Net.TiaPortal.Packages.Openness" Version="19.0.1725520202" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="tests\**" />
+    <None Include="tests\**" />
+  </ItemGroup>
+</Project>

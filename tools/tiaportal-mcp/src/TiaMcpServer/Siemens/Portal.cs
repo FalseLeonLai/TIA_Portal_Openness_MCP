@@ -2282,7 +2282,7 @@ namespace TiaMcpServer.Siemens
             sb.AppendLine("DeepScan: " + deepScan);
             if (plcNode.Node == null || hmiNode.Node == null) return sb.ToString();
 
-#if TIA_V20
+#if TIA_V20 || TIA_V19
             // V20 does not expose Siemens.Engineering.HW.CommunicationConnections. The hardware-level
             // HMI connection helper degrades to a no-op (caller still gets the diagnostic prefix).
             var connectionCompositionType = Type.GetType("Siemens.Engineering.HW.CommunicationConnections.ConnectionComposition, Siemens.Engineering");
@@ -2456,7 +2456,7 @@ namespace TiaMcpServer.Siemens
                 ? BuildHardwareHmiConnectionCandidates(plcNode, hmiNode).ToList()
                 : BuildDirectHardwareHmiConnectionCandidates(plcNode, hmiNode).ToList();
 
-#if TIA_V20
+#if TIA_V20 || TIA_V19
             var commConnT = Type.GetType("Siemens.Engineering.HW.CommunicationConnections.ConnectionComposition, Siemens.Engineering");
             var serviceTypes = commConnT != null
                 ? new[] { commConnT, typeof(NetworkInterface), typeof(NetworkPort) }
@@ -11576,8 +11576,12 @@ namespace TiaMcpServer.Siemens
             var paths = Directory.GetFiles(tempDir, "*.xml", SearchOption.AllDirectories).ToList();
             return (tempDir, paths);
         }
-        
 
+
+#if !TIA_V19
+        // TIA Portal V19 has no SIMATIC SD document API: ExportAsDocuments / ImportFromDocuments
+        // were introduced in V20. On V19 these methods are compiled out and replaced by stubs in
+        // Portal.Documents.V19.cs that raise NotSupportedOnVersion.
         public bool ExportAsDocuments(string softwarePath, string blockPath, string exportPath, bool preservePath = false)
         {
             _logger?.LogInformation($"Exporting block as documents by path: {blockPath}");
@@ -11957,6 +11961,7 @@ namespace TiaMcpServer.Siemens
 
             return imported;
         }
+#endif
 
         #endregion
 
