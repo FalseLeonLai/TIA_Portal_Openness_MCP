@@ -1,8 +1,8 @@
 {
-  "package": "TIA_MCP_Delivery_v2.7.7",
-  "generatedAt": "2026-10-22T17:42:45.285900+08:00",
+  "package": "TIA_MCP_Delivery_v2.7.8",
+  "generatedAt": "2026-10-25T23:50:45.968379+08:00",
   "source": "live MCP tools/list of TiaMcpServer.exe",
-  "toolCount": 235,
+  "toolCount": 238,
   "note": "Full roster (--profile full). The default lite profile lists only the core tools; the rest stay reachable via FindTools + CallTool. Runtime tools/list remains authoritative.",
   "tools": [
     {
@@ -118,7 +118,7 @@
         "designJson",
         "strict"
       ],
-      "description": "[L2][HMI-Unified] PREFERRED for natural-language HMI design. Apply a complete JSON layout spec to a screen in one call: screen size + multiple controls (Button/Rectangle/IOField/Text) with positions, text, and properties. Use item type \"Text\" (HmiText) for static text labels/titles/field captions — a Rectangle has no Text property and renders blank if given text. Requires: Connect + OpenProject + EnsureUnifiedHmiScreen. Better than calling EnsureUnifiedHmiScreenItem multiple times. Use BuildUnifiedHmiLayoutDesignJson to generate the JSON from a grid description."
+      "description": "[L2][HMI-Unified] PREFERRED for natural-language HMI design. Apply a complete JSON layout spec to a screen in one call: screen size + multiple controls (Button/Rectangle/IOField/Text) with positions, text, and properties. Use item type \"Text\" (HmiText) for static text labels/titles/field captions — a Rectangle has no Text property and renders blank if given text. Requires: Connect + OpenProject + EnsureUnifiedHmiScreen. Better than calling EnsureUnifiedHmiScreenItem multiple times: one call places many controls (V21: 100 controls in about 9 s), while one call per control adds a full model round trip per control. Per item, besides name/type/left/top/width/height/text/properties, optional parts: font {Size, Weight, Name} e.g. {\"Size\": 28, \"Weight\": \"Bold\"} (Weight and Name take the TIA enum names, e.g. Normal/Bold, SiemensSans), content {...}, padding {...}. Read a value back with GetObjectProperty(objectKind='HmiScreenItem', objectPath='<hmiSoftware>:<screen>:<item>', propertyPath='Font.Size'). Use BuildUnifiedHmiLayoutDesignJson to generate the JSON from a grid description."
     },
     {
       "name": "ApplyUnifiedHmiTheme",
@@ -1040,6 +1040,23 @@
       "description": "[L2][HMI-Unified] Create or verify the PLC↔HMI communication connection (HMI_Connection_1 by default). Requires: Connect + OpenProject + both PLC and Unified HMI devices. Must exist before PLC-backed HMI tags can exchange data. TIA V21: a new connection is created through the hardware connection API — on Unified panels it is INTEGRATED (PLC partner set, symbolic plcTag binding works), and it also works on Classic/Comfort/Basic panels (KTP Basic, TP/KTP Comfort; classic tags then need absolute addresses). Both devices' Ethernet interfaces must be on the same subnet (ConnectDeviceNodesToProfinetSubnet), and an existing connection between the same HMI and PLC blocks a second one. If the hardware-level create fails on a Unified panel it falls back to a NON-integrated connection and says why. TIA V20: Unified only, NON-integrated (bind HMI tags with an absolute `address`, non-optimized DB); classic panels need the connection made in the TIA GUI. Also sets DisabledAtStartup=false and the PLC/HMI IPs from the hardware configuration (non-integrated), and fails if either cannot be applied."
     },
     {
+      "name": "EnsureUnifiedHmiDiscreteAlarm",
+      "layer": "L2",
+      "domain": "HMI-Unified",
+      "method": "EnsureUnifiedHmiDiscreteAlarm",
+      "returnType": "",
+      "parameters": [
+        "hmiSoftwarePath",
+        "alarmName",
+        "eventText",
+        "triggerTag",
+        "bitNumber",
+        "alarmClass",
+        "triggerMode"
+      ],
+      "description": "[L2][HMI-Unified]Create or update ONE WinCC Unified discrete alarm (HmiSoftware.DiscreteAlarms) and bind it to a bit of an existing HMI tag. Without this, a generated project ends up with an HmiAlarmControl on screen and Alm* bits in the tag table but an EMPTY alarm list - every step reports success and the alarm screen simply never shows anything at runtime. triggerTag must be an EXISTING HMI tag: a name that does not exist is REFUSED up front (with a sample of the real tag names) instead of being written as a dangling reference that only fails at compile or runtime. Also REFUSED before anything is written (meta.success=false, project untouched), because Openness accepts them and only the HMI compile fails: an alarmClass that does not exist, a trigger tag whose type is not Bool or a bit string (TIA V21 only accepts Bool / Byte / Word / DWord / LWord here: every integer type, signed or unsigned, and Real/String fail the HMI compile), a bit number outside the tag's width, and a tag+bit already used by another discrete alarm. Every property written is read back and compared; any item that cannot be read back, or reads back different, fails the call and says which one - the project may then be half-changed, which is reported rather than hidden. triggerMode accepts only the enum names this TIA version defines (typically OnRisingEdge / OnFallingEdge); an unknown value is rejected with the list of valid ones, never coerced. Requires: Connect + OpenProject; run CompileAndDiagnoseHmi and SaveProject afterwards."
+    },
+    {
       "name": "EnsureUnifiedHmiDynamization",
       "layer": "L2",
       "domain": "HMI-Unified",
@@ -1854,6 +1871,18 @@
       "description": "[L1][PLC-Software] Get the full PLC block/type/external-source hierarchy as ASCII tree. Requires: Connect + OpenProject. softwarePath from GetProjectTree (e.g. 'PLC_1'). ALWAYS call before ExportBlock/ImportBlock to get exact group paths (e.g. 'Program blocks/FBs/FB_Motor'). Returns OB/FB/FC/GlobalDB/UDT/ExternalSource blocks with group hierarchy."
     },
     {
+      "name": "GetSoftwareUnits",
+      "layer": "L1",
+      "domain": "PLC-Software",
+      "method": "GetSoftwareUnits",
+      "returnType": "",
+      "parameters": [
+        "softwarePath",
+        "includeBlocks"
+      ],
+      "description": "[L1][PLC-Software] Read-only. List the PLC software units (Software units, S7-1500) of a PLC software and the blocks inside each unit. Openness reaches units only through PlcUnitProvider, so they are not children of the PLC software and GetSoftwareTree / InvokeService alone cannot enumerate them. Every block comes with a blockPath of the form 'Software units/<unit>/<group>/<block>' that ExportBlock, GetBlockInfo, DescribeBlockLogic and the other block tools accept as-is. Requires: Connect + OpenProject. softwarePath from GetProjectTree."
+    },
+    {
       "name": "GetState",
       "layer": "L0",
       "domain": "Portal",
@@ -1896,6 +1925,17 @@
         "regexName"
       ],
       "description": "[L2][PLC-Software]Get a list of types from the plc software"
+    },
+    {
+      "name": "GetUnifiedHmiDiscreteAlarms",
+      "layer": "L2",
+      "domain": "HMI-Unified",
+      "method": "GetUnifiedHmiDiscreteAlarms",
+      "returnType": "",
+      "parameters": [
+        "hmiSoftwarePath"
+      ],
+      "description": "[L2][HMI-Unified]READ-ONLY. List every WinCC Unified discrete alarm with its trigger tag (RaisedStateTag), trigger bit (RaisedStateTagBitNumber), the absolute TriggerBitAddress TIA derived from them, alarm class, trigger mode, priority and the event text per language, plus the names of the alarm classes that actually exist in this HMI. Use it to read back what EnsureUnifiedHmiDiscreteAlarm wrote, and before adding alarms to see which tag/bit combinations are already taken (TIA refuses two alarms on the same tag+bit at compile time). A property that cannot be read is reported as '<read threw: ...>' and makes meta.success false, never an empty value. Nothing is written."
     },
     {
       "name": "GetVersionControlStatus",
