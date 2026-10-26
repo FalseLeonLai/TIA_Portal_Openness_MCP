@@ -77,7 +77,7 @@ namespace TiaMcpServer
                 else
                 {
                     var detected = Engineering.DetectTiaMajorVersion();
-                    tiaMajorVersion = detected ?? 21;
+                    tiaMajorVersion = detected ?? Engineering.DefaultTiaMajorVersion;
                     LogDiag(detected.HasValue
                         ? $"TIA major version (auto-detected): {tiaMajorVersion}"
                         : $"TIA major version (default fallback): {tiaMajorVersion} — install not detected, specify --tia-major-version if wrong");
@@ -276,7 +276,7 @@ namespace TiaMcpServer
                     return;
                 }
 
-                if (Engineering.TiaMajorVersion >= 20)
+                if (Engineering.TiaMajorVersion >= 19)
                 {
                     try
                     {

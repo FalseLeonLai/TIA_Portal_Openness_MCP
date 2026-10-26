@@ -7,7 +7,7 @@ namespace TiaMcpServer.Siemens
     {
         public static int TiaMajorVersion { get; private set; }
 
-        public static void Initialize(int? tiaMajorVersion = 21)
+        public static void Initialize(int? tiaMajorVersion = Engineering.DefaultTiaMajorVersion)
         {
             // with nuget packages:
             // 2.1 nuget package: Siemens.Collaboration.Net.TiaPortal.Openness.Resolver
@@ -15,7 +15,7 @@ namespace TiaMcpServer.Siemens
             // 2.2 nuget package: Siemens.Collaboration.Net.TiaPortal.Packages.Openness
             // 2.3 Api.Global.Openness().Initialize(tiaMajorVersion: 20); // fixed version 20
 
-            TiaMajorVersion = tiaMajorVersion ?? 21; // Default to TIA Portal V21 if not specified
+            TiaMajorVersion = tiaMajorVersion ?? Engineering.DefaultTiaMajorVersion;
 
             // Initialize the Openness API with the specified TIA Portal major version
             Api.Global.Openness().Initialize(tiaMajorVersion: tiaMajorVersion);
