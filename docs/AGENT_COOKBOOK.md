@@ -1,7 +1,7 @@
 # Agent 编程与工具使用手册（TIA Portal V19）
 
 > 给 AI agent 看的操作手册。目标：**用最少的 token 把事做对**。
-> 只读这一份 + 需要时查 `manifest/tools-list.json` 里的单个工具，**不要**一次拉全部 189 个工具的描述。
+> 只读这一份 + 需要时查 `docs/tools-index.csv`（189 个工具的一行索引），**不要**一次拉全部 189 个工具的描述。
 
 ---
 
@@ -90,7 +90,7 @@ Bootstrap → Connect → GetState → GetDevices → GetSoftwareInfo → Discon
 | PLC 软件 | `PlcBuildAndImport` `ImportBlock` `ImportType` `ImportPlcTagTable` `CompileAndDiagnosePlc` `CompileSoftware` `GetSoftwareInfo` `GetSoftwareTree` `WritePlcSclSourceFile` `ValidateAutomationContext` |
 | 在线 | `GoOnline` `GoOffline` `GetOnlineState` `CheckDownloadReadiness` `DownloadToPlc` |
 
-**L2（153 个）**：构建器、HMI、导出、报表、诊断。用之前先在 `manifest/tools-list.json` 里搜名字，**不要凭记忆猜**。
+**L2（153 个）**：构建器、HMI、导出、报表、诊断。用之前先在 `docs/tools-index.csv` 里搜名字（或查 `docs/TOOLS_REFERENCE.md` 的完整说明），**不要凭记忆猜**。
 高频 L2：`BuildPlcUdtXml` `BuildPlcGlobalDbXml` `BuildPlcTagTableXml` `BuildFlgNetCallXml` `ImportPlcExternalSource` `GenerateBlocksFromExternalSource` `GetBlocks` `GetBlocksWithHierarchy` `GetBlockInfo` `ExportBlock` `GetPlcTagTables` `GetTypes` `GetHmiScreens` `ApplyUnifiedHmiScreenDesignJson`。
 
 ---
