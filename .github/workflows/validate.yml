@@ -22,3 +22,15 @@ jobs:
       - name: Offline bundle validation
         shell: pwsh
         run: ./scripts/Validate-Bundle.ps1 -Strict
+
+  renderer-smoke:
+    # No TIA/Openness needed: parses checked-in SimaticML fixtures with the
+    # same LadTextRenderer/SimaticMlText sources used by DescribeBlockLogic.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Renderer smoke
+        run: dotnet run --project tools/tiaportal-mcp/tests/RendererSmoke/RendererSmoke.csproj -c Release
