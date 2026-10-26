@@ -1,21 +1,20 @@
 ﻿{
   "schemaVersion": "2026-05-25",
   "bundleVersion": "2.7.8",
-  "packageName": "TIA_MCP_Delivery_v2.7.8_20261026",
+  "packageName": "TIA_MCP_V19_2.7.8_20261026",
   "packageType": "tia-portal-mcp-complete-offline-delivery-bundle",
   "generatedAt": "2026-05-31T20:30:00+08:00",
   "refreshedAt": "2026-10-26T00:50:00+08:00",
   "target": {
     "tiaPortalMajorVersion": [
-      20,
-      21
+      19
     ],
-    "publicApiPathExample": "D:\\app\\TIA21\\Portal V21\\PublicAPI or D:\\app\\TIA20\\Portal V20\\PublicAPI",
+    "publicApiPathExample": "D:\\app\\TIA19\\Portal V19\\PublicAPI\\V19",
     "runtimeRequirement": ".NET Framework 4.8",
     "windowsGroupRequirement": "Siemens TIA Openness",
     "newCliFlags": [
       "--tia-portal-location <path>",
-      "--tia-major-version {20|21}"
+      "--tia-major-version {19}"
     ]
   },
   "selfContainedScope": {
@@ -40,7 +39,7 @@
   "entrypoints": {
     "readme": "README.md",
     "skill": "tools/tiaportal-mcp/skill/SKILL.md",
-    "mcpServerExe": "tools/tiaportal-mcp/src/TiaMcpServer/bin/Release/net48/TiaMcpServer.exe",
+    "mcpServerExe": "tools/tiaportal-mcp/src/TiaMcpServer/bin-v19/Release/net48/TiaMcpServer.exe",
     "cursorExample": "cursor-mcp.example.json",
     "toolRoster": "manifest/tools-list.json",
     "toolMatrix": "docs/tool-capability-matrix.md",
@@ -58,7 +57,7 @@
   },
   "cli": {
     "description": "Same exe also runs as a declarative CLI: `tia <verb>`. Any AI can emit a YAML/JSON spec; any engineer runs one command. No MCP client required.",
-    "exe": "tools/tiaportal-mcp/src/TiaMcpServer/bin/Release/net48/TiaMcpServer.exe",
+    "exe": "tools/tiaportal-mcp/src/TiaMcpServer/bin-v19/Release/net48/TiaMcpServer.exe",
     "verbs": [
       "gen",
       "patch",
@@ -84,16 +83,13 @@
     }
   },
   "capabilities": {
-    "mcpToolCount": 238,
+    "mcpToolCount": 233,
     "mcpToolLayers": {
       "L0": 9,
       "L1": 38,
       "L2": 164
     },
-    "newToolsThisRelease": [
-      "HealthCheck (v2.4.0)",
-      "HealthCheckBlock (v2.4.0)"
-    ],
+    "newToolsThisRelease": [],
     "removedToolsThisRelease": [],
     "hmiTemplateJsonCount": 8,
     "plcTemplateJsonCount": 9,
@@ -137,5 +133,18 @@
       "PLC templates are general-purpose instruction and structure examples.",
       "Run scripts/Validate-Bundle.ps1 from bundle root for offline file/JSON checks; tools/list when server runs is authoritative for tool roster."
     ]
+  },
+  "v19": {
+    "baseMaster": "2.7.8",
+    "excludedTools": [
+      "GetVersionControlWorkspaces",
+      "CreateVersionControlWorkspace",
+      "GetVersionControlStatus",
+      "SyncVersionControlWorkspace",
+      "ConnectProjectToWorkspace"
+    ],
+    "documentTools": "ExportAsDocuments/ExportBlocksAsDocuments/ImportFromDocuments/ImportBlocksFromDocuments return NotSupportedOnVersion",
+    "defaultProfile": "lite",
+    "fullProfileFlag": "--profile full or TIA_MCP_PROFILE=full"
   }
 }

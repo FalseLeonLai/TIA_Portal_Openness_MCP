@@ -1,9 +1,9 @@
-# MCP 工具能力矩阵
+﻿# MCP 工具能力矩阵
 
 本文件由源码中的 `[McpServerTool]` 静态抽取生成，运行时仍以 `tools/list` 为准。
 
-- 生成时间：2026-10-26 00:50:46
-- 工具数量：238
+- 生成时间：2026-10-26 15:15:32
+- 工具数量：233
 
 ## L0
 
@@ -133,14 +133,6 @@
 | ScaffoldProject | [L1][Project] One-shot project generator: from a single JSON spec it creates the project, adds PLC (and optional Unified HMI) hardware, builds UDTs/global DBs/PLC tag tables, imports SCL external sources and LAD S7DCL documents, compiles, sets up the HMI connection/screens/tags, and saves — collapsing the ~20-step runbook into one call. Auto-connects if needed. Critical-step failures (connect/createProject/PLC device) abort; per-element failures are collected and reported. Spec keys: projectName(required); directoryPath?(default %TEMP%); plcName?(PLC_1); plcFamily?(S7-1500); plcMlfb?; hmiName?(omit to skip all HMI); hmiFamily?(WinCCUnifiedPC); hmiSoftwarePath?(HMI_RT_1); connectionName?(HMI_Connection_1); udt?/globalDb?/tagTable? = arrays of the same json objects PlcBuildAndImport accepts; sclSourceFiles? = array of .scl file paths; ladDocs? = array of {importPath,name}; hmiScreens? = array of {screenName,width,height,designJson(object)}; hmiTags? = array of {tagTableName?,tagName,hmiDataType?,plcTag?,address?}; compile?(true); save?(true). Returns a per-step report with compile error/warning counts. dryRun DEFAULTS TO TRUE (safety): the default call only validates the spec offline (PLC block JSON shapes, SCL/LAD file paths, designJson) WITHOUT connecting to TIA or creating anything; after a clean dry run, call again with dryRun=false to actually create the project. |
 | SaveProject | [L1][Project] Save the currently open project or session to disk. Requires: Connect + OpenProject. Call after any significant change (device add, block import, HMI edit). Compile first if there are pending changes to ensure consistency. |
 | CloseProject | [L1][Project] Close the currently open project or multi-user session. Requires: Connect + OpenProject. Any unsaved changes are lost — call SaveProject first. After closing, the connection remains active but no project is open. A project this session did not open (the user's own, attached from a running TIA Portal) is NOT closed unless closeForeignProject=true. |
-
-### VersionControl
-
-| Tool | Description |
-|---|---|
-| GetVersionControlWorkspaces | [L1][VersionControl] List this project's version control (VCI) workspaces: name, folder on disk, language, and how many objects are mapped. A workspace is the plain-text mirror of the project that Git can actually diff and commit. Read-only. Requires TIA V21+ and an open project. |
-| GetVersionControlStatus | [L1][VersionControl] Per-object status of a VCI workspace: which mapped objects differ between the TIA project and the text files on disk. This is the input for a change log — it names exactly what changed before you commit. Read-only, changes nothing. Status values: Equal (in sync), Unequal (project and file differ), WorkspaceFileMissing (never exported), Unknown. |
-| SyncVersionControlWorkspace | [L1][VersionControl] Synchronize a VCI workspace. direction='ProjectToWorkspace' writes the TIA project's objects out as text files (do this before `git commit`); 'WorkspaceToProject' reads the text files back INTO the project (do this after `git pull` / to restore a reviewed version). DEFAULTS TO dryRun=true: the default call only reports what WOULD be synchronized. WorkspaceToProject OVERWRITES blocks in the open project — compile and save afterwards, and it requires a Pro license (exporting is free). |
 
 ## L2
 
@@ -406,11 +398,4 @@
 | RunOfflineReleaseValidationSuite | [L2][Validation]Offline-only helper: run the release smoke suite covering PLC Builder, Classic HMI, PLC symbol extraction, Unified HMI template layout, HMI action recipes, and online-monitoring safety guardrails. It does not connect to TIA Portal or modify projects. |
 | RunV2PlanCompletionAudit | [L2][Validation]Offline-only strict audit for docs/TIA_MCP_常见操作全覆盖方案_V2_二次优化计划.md. It reports verified hard-gate percentage and blocks 100% claims when real TIA/online evidence is missing. |
 | RunHmiTemplatePlcSyncPrecheckSuite | [L2][Validation]Offline-only helper: verify Unified HMI template RequiredTags against real PLC tag/DB-member XML symbols before any HMI binding. It does not connect to TIA Portal or modify projects. |
-
-### VersionControl
-
-| Tool | Description |
-|---|---|
-| CreateVersionControlWorkspace | [L2][VersionControl] Create a VCI workspace pointing at a folder on disk — normally the working tree of a Git repository, so every synchronized export lands where Git can commit it. Creating the workspace does NOT map any objects into it — call ConnectProjectToWorkspace afterwards to map the whole project (or one device) automatically. Requires TIA V21+ and an open project. |
-| ConnectProjectToWorkspace | [L2][VersionControl] Put a WHOLE project under version control automatically - no TIA UI clicks. Walks the project tree, asks every object whether VCI can map it (Workspace.GetSupportedFileFormats) and maps each supported object with Workspace.ConnectObject. COARSE-FIRST: when a device or PLC software object is mappable as one unit it is mapped whole and its children are not visited, so you get the fewest mappings that still cover everything. Objects VCI does not support (typically hardware configuration) are reported, never silently dropped. DEFAULTS TO dryRun=true: the default call only reports what it WOULD map. After a real run call SyncVersionControlWorkspace(ProjectToWorkspace, dryRun=false), then git commit. |
 
