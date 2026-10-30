@@ -1,5 +1,21 @@
 ﻿# Change Log
 
+## [2.7.8.1] - 2026-10-30 - HTTP 请求体一律按 UTF-8 解码
+
+工具数不变（V19 233）。
+
+### 修复
+
+- **HTTP 传输把 UTF-8 入参按 GBK 解码（中文 Windows）。** `HttpMcpServer` 原来用
+  `req.ContentEncoding ?? Encoding.UTF8` 读请求体，但 `HttpListenerRequest.ContentEncoding`
+  在 `Content-Type` 没有 `charset` 时返回 `Encoding.Default`（cp936），不是 null，兜底永远不触发。
+  所有含非 ASCII 的入参因此被解坏：组名里的 U+00A0 变成「聽」，该组下所有块都 `Block not found`；
+  中文块名、变量名、注释同样不可用。典型 MCP 客户端发 `Content-Type: application/json` 不带 charset，
+  属于合法请求。
+  - 现在缺省 UTF-8；只有客户端显式写了 `charset=` 才按它解，未知 charset 回退 UTF-8。
+  - stdio 侧早已强制 `Console.InputEncoding/OutputEncoding = UTF-8`，未受影响。
+  - 离线回归：无 charset / 显式 utf-8 / 带引号 charset / 未知 charset，以及 U+00A0 与中文路径的字节回读。
+
 ## [2.7.8] - 2026-10-26 - 读软件单元、Unified 离散报警、反射调用的拒绝文字说清楚
 
 工具数 235 → 238；精简档不变（新工具用 FindTools 找、CallTool 调）。
