@@ -1,6 +1,6 @@
-﻿# TIA Portal V19 引擎（master 2.7.8 全量合并）
+﻿# TIA Portal V19 引擎（2.7.8.4）
 
-> 状态：**V19 构建 0 errors / 既有 warnings；离线测试 527 passed；真机验收 48 PASS / 2 FAIL / 1 BLOCKED / 7 N/A**（2026-10-30）。
+> 状态：**V19 构建 0 errors / 2 既有 warnings；离线测试 546 passed；B1–B5 未真机**（2026-11-18）。
 > 核心链、块读取与导出、HTTP 编码、V19 边界、编译、生成、日常编辑（除改名）、HTTP 安全已真机验证；HMI 未测（测试工程无 HMI）。
 > 已知问题：`ExportDeviceAml` 在 V19 上可能让 TIA 实例崩溃；`SetPlcTag` 改名在 V19 不受支持（`PlcTag.Name` 只读）。
 >
@@ -10,7 +10,7 @@
 
 ## 这是什么
 
-上游 `v19` 已合入本项目的 V19 移植。本分支不再逐条回移，而是把 **master 2.7.8 全量合并**进 `v19`，只保留 V19 无法编译的 API 的 guard：
+本分支从上游 V19 移植继续演进，**独立维护，不再向上游提交 PR**；上游代码只作参考基线。核心仍是把 **master 2.7.8 全量合并**进 `v19`，只保留 V19 无法编译的 API 的 guard：
 
 - 编译目标 **Openness 19.0**（`Siemens.Collaboration.Net.TiaPortal.Packages.Openness 19.0.1725520202`）
 - 新增 `TiaMcpServer.V19.csproj`，定义 `TIA_V19`，输出 `bin-v19/`
@@ -64,6 +64,20 @@
 - **反射桥修复**：`GetObjectProperty` / `ListObjectChildren` 以前对「属性不存在」「路径中段为 null」「不是集合」都回 `OK` + 空数据；现在返回结构化 `InvalidParams`，并提示改用 `GetBlockInterface`。这是报告里 `Interface` 静默成功那一类的根因。
 - **离线回归**：527 passed / 0 failed（本 PR 接口/列表用例 48 条；总数含既有基线）。
 - **真机状态**：本轮新增的 `GetBlockInterface` / `GetTypeStructure` 尚未在 TIA V19 真机上验证；上面的 48 PASS 是 2.7.8.1 旧矩阵，不覆盖这两个工具。
+
+## 2.7.8.3 / 2.7.8.4 修复（2026-11-18）
+
+- **2.7.8.3 `DescribeBlockLogic` 完整接线**：每个 LAD 网络在能流摘要后输出逐引脚接线表——
+  `IN/EN/IN1/IN2/PT` 等输入脚写来源条件（串联 `·`、并联 `+`），`Q/ET/ENO/OUT` 等输出脚写去向，
+  未接标 `未接`；一个脚的多条 `<Wire>` 全部保留。TON 的 `IN` 大小写、Add 的 EN/IN1/IN2 分支不再丢。
+- **2.7.8.4 B1–B5**：
+  - B1：`<Call>` 调用框独立输出行（`[82] Call #epos (FB284)`），引脚目标带实例/块名，Call 引脚方向从线另一端推断。
+  - B2：箱式 TON 数组实例保留下标：`TON[Delay[1]]`。
+  - B3：空网络 / 未识别部件 / 不支持语言分开提示。
+  - B4：`GetState` 返回 `attachableProjects` 和 `nextAction`，`Bootstrap` 同步；不自动绑定，避免误绑用户工程。
+  - B5：`GetBlockInfo` 的 `Block not found` 复用 RECOVERY，并按普通空格 ↔ U+00A0 归一化找候选。
+- **验证**：V19 构建 0 errors / 2 既有 warnings；离线 **546 passed / 0 failed**（新增 7 条）。
+  B1–B5 尚未真机，需用含 FB/FC 调用、多个同名 TON、空网络和 NBSP 路径的块复测。
 
 ## 默认工具档位
 
@@ -177,5 +191,7 @@ TIA 装在默认位置且只装 V19 时，`--tia-major-version` 可省略（会�
 
 ## 维护策略
 
-- `v19` 跟随 master 合并，不再逐条回移；每次合并后重跑本文件的真机矩阵。
-- 连续 6 个月无 V19 issue 且 master 不再兼容 V19 API → 仅安全修复；再 6 个月 → 归档。
+- `v19` 独立维护，**不再向上游提交 PR**；上游代码仅作参考基线。
+- 每次分支维护/发版固定流程：V19 构建 → 离线测试 → 更新 `CHANGELOG.md` / `README.V19.md` / 工具文档 → 打 `v<version>-v19` tag → 发布 GitHub Release（完整包 + 热修包 + SHA256）。
+- 每次合并上游或大改后重跑真机矩阵；未真机的修复必须在 Release notes 里标明。
+- 连续 6 个月无 V19 issue 且上游不再兼容 V19 API → 仅安全修复；再 6 个月 → 归档。
