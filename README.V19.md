@@ -192,6 +192,6 @@ TIA 装在默认位置且只装 V19 时，`--tia-major-version` 可省略（会�
 ## 维护策略
 
 - `v19` 独立维护，**不再向上游提交 PR**；上游代码仅作参考基线。
-- 每次分支维护/发版固定流程：V19 构建 → 离线测试 → 更新 `CHANGELOG.md` / `README.V19.md` / 工具文档 → 打 `v<version>-v19` tag → 发布 GitHub Release（完整包 + 热修包 + SHA256）。
+- 每次分支维护/发版固定流程：V19 构建 → 离线测试 → 更新 `CHANGELOG.md` / `README.V19.md` / 工具文档 → 打 `v<version>-v19` tag → 发布 GitHub Release（完整包 + 热修包 + SHA256）。逐条命令见 [`docs/RELEASE_CHECKLIST_V19.md`](docs/RELEASE_CHECKLIST_V19.md)。
 - 每次合并上游或大改后重跑真机矩阵；未真机的修复必须在 Release notes 里标明。
 - 连续 6 个月无 V19 issue 且上游不再兼容 V19 API → 仅安全修复；再 6 个月 → 归档。
