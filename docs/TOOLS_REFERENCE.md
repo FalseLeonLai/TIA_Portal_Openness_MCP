@@ -1,6 +1,6 @@
-# TIA Portal MCP 工具总览（全部 235 个）
+# TIA Portal MCP 工具总览（全部 239 个）
 
-> 由 `scripts/generate-tools-reference.py` 从源码 `[McpServerTool]` 属性生成，与运行时 `tools/list` 一致。生成日期：2026-11-18。
+> 由 `scripts/generate-tools-reference.py` 从源码 `[McpServerTool]` 属性生成，描述与运行时 `tools/list` 一致；参数表省略 SDK 注入的 `IMcpServer` / `RequestContext` / `CancellationToken`。生成日期：2026-11-19。
 > 分层：**L0** 只读引导/诊断 · **L1** 高频主力 · **L2** 专用/离线构建器。
 >
 > **V19 注意**：`ExportAsDocuments`、`ExportBlocksAsDocuments`、`ImportFromDocuments`、`ImportBlocksFromDocuments` 在 V19 上返回 `NotSupportedOnVersion`（V19 没有 SIMATIC SD 文档 API）；5 个 VCI 工具不编译；默认 lite 档，全量工具用 `--profile full` 或 `TIA_MCP_PROFILE=full`。
@@ -18,8 +18,9 @@
 | [HMI-Library](#hmi-library) | 6 | HMI 模板/全局库分析 |
 | [HMI-Unified](#hmi-unified) | 24 | WinCC Unified |
 | [Hardware](#hardware) | 31 | 设备、型号目录、PROFINET |
-| [Meta](#meta) | 2 |  |
+| [Meta](#meta) | 4 |  |
 | [Online-Monitoring](#online-monitoring) | 12 | 只读在线监控、S7/OPC UA 读值 |
+| [Orchestration](#orchestration) | 2 |  |
 | [PLC-Alarms](#plc-alarms) | 5 | 报警类别与报警文本的导入导出 |
 | [PLC-Builders](#plc-builders) | 9 | 离线 XML / DSL 构建器 |
 | [PLC-Online](#plc-online) | 9 | 上线、下载、在线状态、在线/离线比较 |
@@ -31,7 +32,7 @@
 | [Reflection](#reflection) | 7 | 对象反射查询 |
 | [Reports](#reports) | 6 | 验收/诊断/交付报告 |
 | [Validation](#validation) | 3 | 离线校验套件 |
-| **合计** | **235** | |
+| **合计** | **239** | |
 
 <a id="bootstrap"></a>
 ## Bootstrap（1 个）
@@ -101,7 +102,7 @@
 
 ### `ClearExports` <sub>L1</sub>
 
-[L1][Exports] Drop parked responses in bulk. NOTE: handles already expire on their own at 24h,
+[L1][Exports] Drop parked responses in bulk. NOTE: handles already expire on their own at 24h, so the default olderThanHours=24 almost always deletes nothing — pass olderThanHours=0 to actually free the store now.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -111,7 +112,7 @@
 
 ### `DeleteExport` <sub>L1</sub>
 
-[L1][Exports] Drop one export handle once you are done with it. Optional — handles expire on
+[L1][Exports] Drop one export handle once you are done with it. Optional — handles expire on their own after 24 hours and the oldest are evicted automatically when the store fills up.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -121,7 +122,7 @@
 
 ### `GetExport` <sub>L1</sub>
 
-[L1][Exports] Read one page of a large response that was parked under an export handle.
+[L1][Exports] Read one page of a large response that was parked under an export handle. When a tool's response exceeds the size limit the engine stores the full text and returns only its head plus an 'exportId'; call this with that id to read the rest. Page forward by passing the 'nextOffset' from the previous page until 'eof' is true. Each page is a raw CHARACTER SLICE of the original text — it can cut a line or a JSON value in half. Concatenate every page first, THEN parse; never parse a single page on its own. Handles live for 24 hours and only inside the current engine session.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -133,7 +134,7 @@
 
 ### `ListExports` <sub>L1</sub>
 
-[L1][Exports] List the export handles currently held by this engine session — id, the tool
+[L1][Exports] List the export handles currently held by this engine session — id, the tool that produced each one, its target, age, and total size. Use it when you have lost an exportId, or to check what is still available before paging.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -144,7 +145,7 @@
 
 ### `SaveExport` <sub>L1</sub>
 
-[L1][Exports] Write a parked response to a file in one step, instead of paging it through
+[L1][Exports] Write a parked response to a file in one step, instead of paging it through the conversation. Prefer this whenever the user wants the whole thing (a full cross-reference dump, a whole block list, a whole block export): it costs one call and no context. By default the tool's PAYLOAD is written (e.g. the CSV itself), not the JSON envelope around it — so saving a truncated table to 'IO.csv' really gives you a CSV you can open in Excel. Pass raw=true to write the untouched response text instead. Written as UTF-8 with BOM so Chinese opens correctly in Notepad and Excel.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1025,7 +1026,7 @@
 
 ### `DumpDeviceAttributes` <sub>L2</sub>
 
-[L2][Category:Hardware][PreCondition:Connect+OpenProject]
+[L2][Category:Hardware][PreCondition:Connect+OpenProject] Read-only inventory of EVERY Openness attribute exposed on a device's items (CPU, modules, interfaces, ports): name, access mode (read-only vs read/write), current value, value type. Run this ONCE per CPU/firmware to learn what is actually exposed, then drive hardware reads/writes from that ground truth instead of guessing attribute names. Optional nameFilter narrows to attributes whose name contains a substring (e.g. 'protection', 'putget', 'ip'). NOTE: GetAttributeInfos() does not enumerate every gettable attribute on all CPUs, so absence here means 'not enumerated', not a guaranteed 'no interface'.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1069,7 +1070,7 @@
 
 ### `GetDeviceIpAddress` <sub>L1</sub>
 
-[L1][Category:Hardware][PreCondition:Connect+OpenProject]
+[L1][Category:Hardware][PreCondition:Connect+OpenProject] Read a device's configured IP address straight from the TIA project (Openness PROFINET node) — NOT by probing the CPU over S7 and NOT by exporting/parsing AML. Returns the primary IE IP plus all network nodes (address, subnet, type). This is the correct, fast way to discover a PLC's IP before GoOnline/ReadPlcLiveValuesS7.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1089,7 +1090,7 @@
 
 ### `GetDeviceItemIoAddresses` <sub>L2</sub>
 
-[L2][Hardware] READ-ONLY. List the I/O addresses of one device item (signal module, signal board,
+[L2][Hardware] READ-ONLY. List the I/O addresses of one device item (signal module, signal board, built-in CPU I/O). Returns each address as ioType + startAddress + length in ENGINE RAW VALUES (startAddress is the byte offset: %I2.0 is startAddress 2). Use this to confirm an address before and after changing it. Device item path looks like 'PLC_1/DI 8x24VDC_1' — get it from GetDeviceItemTree.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1120,7 +1121,7 @@
 
 ### `GetDevicePlugLocations` <sub>L2</sub>
 
-[L2][Hardware] READ-ONLY. List the plug slots of one device item: which slot numbers are FREE
+[L2][Hardware] READ-ONLY. List the plug slots of one device item: which slot numbers are FREE (as reported by TIA at runtime) and which are already OCCUPIED (by name / order number / built-in). Call this BEFORE plugging a signal board (SB), signal module (SM) or communication module (CM) so the slot / position number comes from TIA instead of a guess — slot numbers differ per CPU family and are never hardcoded by this server. A signal board plugs into the CPU device item itself, so pass the CPU path (e.g. 'PLC_1'). Get paths from GetDeviceItemTree.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1136,13 +1137,13 @@
 
 ### `GetProjectTopology` <sub>L1</sub>
 
-[L1][Category:Hardware][PreCondition:Connect+OpenProject]
+[L1][Category:Hardware][PreCondition:Connect+OpenProject] One-shot, read-only project topology from Openness: every device with its network nodes (IP, subnet, node type). Call this early to understand the project's devices and subnets at a glance, instead of probing S7 or parsing AML.
 
 返回：`ResponseJsonReport`
 
 ### `GetPutGetAccess` <sub>L2</sub>
 
-[L2][Category:Hardware][PreCondition:Connect+OpenProject]
+[L2][Category:Hardware][PreCondition:Connect+OpenProject] Read whether a CPU permits remote PUT/GET access — the precondition for ReadPlcLiveValuesS7 on DB areas. If enabled=false, S7 absolute reads of DBs will fail; enable with SetPutGetAccess (then hardware DownloadToPlc).
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1162,7 +1163,7 @@
 
 ### `PlugDeviceItem` <sub>L2</sub>
 
-[L2][Hardware][Destructive] Insert a SUBMODULE into an existing device: signal board (SB, e.g. SB 1221
+[L2][Hardware][Destructive] Insert a SUBMODULE into an existing device: signal board (SB, e.g. SB 1221 6ES7221-3BD30-0XB0), signal module (SM), or communication module (CM). This is the 'InsertDeviceItem' / 'AddSignalBoard' operation — AddDevice only creates whole stations and cannot plug boards into a CPU. Defaults to dryRun=true, which runs a REAL TIA feasibility check (CanPlugNew) without writing. Pass positionNumber=-1 to let the server pick a free slot reported by TIA; slot numbers are never hardcoded — use GetDevicePlugLocations to see them. After a successful plug the module is read back and verified (IsPlugged / name / slot). This tool does NOT set addresses: to make the inputs start at %I2.0, call SetDeviceItemIoAddress afterwards with startAddress=2, then CompileSoftware and SaveProject. Failures are reported by category: SlotOccupied, SlotNotAvailable, OrderNumberNotFound, NotSupportedByDevice, PlugFailed, VerifyFailed.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1246,7 +1247,7 @@
 
 ### `SetDeviceItemIoAddress` <sub>L2</sub>
 
-[L2][Hardware][Destructive] Preview or change the I/O START ADDRESS of one device item
+[L2][Hardware][Destructive] Preview or change the I/O START ADDRESS of one device item (e.g. move a DI module to start at %I2.0 by passing startAddress=2). Defaults to dryRun=true. startAddress is the ENGINE RAW byte offset, not '2.0'. It writes hardware configuration, so a wrong value does NOT fail compilation — the program silently reads a different module. Read back with GetDeviceItemIoAddresses, then CompileSoftware and SaveProject. Overlapping address ranges are rejected by TIA and reported back with the reason.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1259,7 +1260,7 @@
 
 ### `SetPutGetAccess` <sub>L2</sub>
 
-[L2][Category:Hardware][CONFIG-WRITE][PreCondition:Connect+OpenProject]
+[L2][Category:Hardware][CONFIG-WRITE][PreCondition:Connect+OpenProject] Enable or disable remote PUT/GET access on a CPU (the precondition for S7 DB reads). This is a hardware-configuration change — you must run DownloadToPlc afterwards for it to take effect on the live CPU. Returns before/after readback evidence.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1271,25 +1272,22 @@
 ---
 
 <a id="meta"></a>
-## Meta（2 个）
+## Meta（4 个）
 
 ### `CallTool` <sub>L0</sub>
 
-[L0][Meta] Invoke a tool from the full roster by name, including ones not listed in this session.
+[L0][Meta] Invoke a tool from the full roster by name, including ones not listed in this session. Use FindTools first to get the exact name and parameter signature. Returns exactly what calling the tool directly returns, and unknown argument names are rejected before anything runs. Tools that download to a CPU, go online, write watch tables or delete blocks/types/tag tables/external sources are refused here: call those by their own name so the user sees what will run. Example: name='ExportPlcWatchTable', argumentsJson='{"softwarePath":"PLC_1","watchTableName":"WT1"}'.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
-| `server` | `IMcpServer` |  |  |
-| `context` | `RequestContext<CallToolRequestParams>` |  |  |
 | `name` | `string` |  | exact tool name from FindTools, e.g. 'ExportPlcWatchTable'. |
 | `argumentsJson` | `string` | `""` | JSON object of the tool's arguments, e.g. '{"softwarePath":"PLC_1"}'. Omit or '{}' for a no-argument tool. |
-| `cancellationToken` | `CancellationToken` | `default` |  |
 
 返回：`async Task<object?>`
 
 ### `FindTools` <sub>L0</sub>
 
-[L0][Meta] Search the FULL tool roster, including tools not listed in this session.
+[L0][Meta] Search the FULL tool roster, including tools not listed in this session. By default the server lists only a core 'lite' roster so the tool list stays small and every host can load it; everything else is reached through this tool plus CallTool. USE THIS whenever the visible tools do not cover what you need, before concluding the server cannot do something. Search by capability words, not exact names: 'watch table', 'HMI screen', 'download', 'cross reference', 'GSD'. Returns each match's exact name, parameter signature with defaults, and full description; then invoke it with CallTool. Each result line ends with an [access|status] tag: access is read/write/delete, status is verified/implemented/unverified/planned.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1297,6 +1295,29 @@
 | `limit` | `int` | `12` | max tools to return (default 12). Raise it for a broad survey. |
 
 返回：`ResponseStringList`
+
+### `GetOpsLedger` <sub>L0</sub>
+
+[L0][Meta] Read the tail of the operation ledger written by RunBatch. Returns JSONL lines with timestamp, batchId, index, tool, access, status (ok/error/skipped), durationMs, argumentsSha256 and error. Arguments are never stored in plain text. Default limit 50 (values <= 0 use 50, values > 500 are capped at 500). Does not touch TIA Portal. Use it to audit what a batch did or to resume after a failure.
+
+| 参数 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `limit` | `int` | `OpsLedger.DefaultLimit` | number of trailing ledger lines to return, default 50; values <= 0 use 50, values > 500 are capped at 500. |
+
+返回：`ResponseStringList`
+
+### `GetToolCapabilities` <sub>L0</sub>
+
+[L0][Meta] Describe what every tool does before calling it: read/write/delete access, verification status (Verified / Implemented / Unverified / Planned), destructiveness, direct-only calls, open-world calls, and prerequisites (portal, online, confirm, dryRun, V20+, V21+). USE THIS before planning a multi-step edit or a write: a Planned tool cannot run on this TIA version, and a Destructive tool needs the user's confirmation. Filter by query (space-separated words matched against name/description/category), status or access; limit defaults to 50 and caps at 500. Returns the same roster FindTools searches.
+
+| 参数 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `query` | `string` | `""` | space-separated words matched against tool name, description and category, e.g. 'watch table export'. Empty lists everything. |
+| `status` | `string` | `""` | optional filter - Verified, Implemented, Unverified or Planned (case-insensitive). |
+| `access` | `string` | `""` | optional filter - Read, Write or Delete (case-insensitive). |
+| `limit` | `int` | `50` | page size, default 50; values <= 0 use 50, values > 500 are capped at 500. |
+
+返回：`ResponseToolCapabilities`
 
 ---
 
@@ -1465,12 +1486,44 @@
 
 ---
 
+<a id="orchestration"></a>
+## Orchestration（2 个）
+
+### `PlanBatch` <sub>L1</sub>
+
+[L1][Orchestration] Validate a list of tool calls WITHOUT executing anything. operationsJson is a JSON array like '[{"tool":"GetBlocks","argumentsJson":"{\"softwarePath\":\"PLC_1\"}"}]'. Checks that every tool exists, is supported by this TIA version, is not direct-only unless allowDirectOnly=true, has confirm=true when it writes, and that argumentsJson binds to the tool's real parameters. Returns CanRun plus every issue per operation. Does not touch TIA Portal. USE THIS before RunBatch: it costs nothing and turns a half-executed batch into a list of fixes.
+
+| 参数 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `operationsJson` | `string` |  | JSON array of {tool, argumentsJson} objects, executed in array order. |
+| `confirm` | `bool` | `false` | true is required for operations that write or delete. |
+| `allowDirectOnly` | `bool` | `false` | allow download/online/delete tools in the batch. Their host approval prompt only names RunBatch, so use sparingly. |
+| `maxOperations` | `int` | `BatchPlanner.DefaultMaxOperations` | batch size limit, default 200; values below 1 become 1 and above 200 become 200. |
+
+返回：`ResponseBatchPlan`
+
+### `RunBatch` <sub>L1</sub>
+
+[L1][Orchestration][Destructive] Execute a pre-checked batch of tool calls sequentially. operationsJson is the same JSON array as PlanBatch '[{"tool":"GetBlocks","argumentsJson":"{\"softwarePath\":\"PLC_1\"}"}]'. The whole batch is re-preflighted first and is refused (nothing runs) if any operation has an issue. Operations run in array order behind one process-wide Portal lock; every operation is written to the JSONL operation ledger (arguments are stored only as SHA-256). confirm=true is required for writes/deletes; continueOnError=false stops at the first failure and marks the rest skipped; allowDirectOnly=true permits download/online/delete tools in the batch. Use PlanBatch first to see the issues without running anything.
+
+| 参数 | 类型 | 默认 | 说明 |
+|---|---|---|---|
+| `operationsJson` | `string` |  | JSON array of {tool, argumentsJson} objects, executed in array order. |
+| `confirm` | `bool` | `false` | true is required for operations that write or delete. |
+| `continueOnError` | `bool` | `false` | false (default) stops at the first failure and marks the rest skipped; true keeps going. |
+| `allowDirectOnly` | `bool` | `false` | allow download/online/delete tools in the batch. Their host approval prompt only names RunBatch, so use sparingly. |
+| `maxOperations` | `int` | `BatchPlanner.DefaultMaxOperations` | batch size limit, default 200; values below 1 become 1 and above 200 become 200. |
+
+返回：`async Task<ResponseBatchRun>`
+
+---
+
 <a id="plc-alarms"></a>
 ## PLC-Alarms（5 个）
 
 ### `ExportAlarmClasses` <sub>L2</sub>
 
-[L2][Category:PLC-Alarms][PreCondition:Connect+OpenProject]
+[L2][Category:PLC-Alarms][PreCondition:Connect+OpenProject] Export PLC alarm classes to a file. Alarm classes define severity, acknowledgment behavior, and display colors for alarms. The exported file can be edited and re-imported to update alarm class configurations. Use before bulk alarm class updates to create a backup.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1481,7 +1534,7 @@
 
 ### `ExportAlarmInstanceTexts` <sub>L2</sub>
 
-[L2][Category:PLC-Alarms][PreCondition:Connect+OpenProject]
+[L2][Category:PLC-Alarms][PreCondition:Connect+OpenProject] Export PLC alarm instance texts to an XLSX file. Instance texts are the alarm messages tied to specific FB/FC instances (e.g. Motor_01.AlarmText). Options control what additional columns are included in the export. Typical use: export → fill in alarm descriptions → ImportInstanceTexts (not yet exposed — edit via TIA Portal UI).
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1495,7 +1548,7 @@
 
 ### `ExportAlarmTextLists` <sub>L2</sub>
 
-[L2][Category:PLC-Alarms][PreCondition:Connect+OpenProject]
+[L2][Category:PLC-Alarms][PreCondition:Connect+OpenProject] Export all PLC alarm text lists to an XLSX (Excel) file. Text lists contain the text strings shown for each alarm condition. Supports multi-language projects — all configured languages are exported. Typical use: export → translate in Excel → ImportAlarmTextLists.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1506,7 +1559,7 @@
 
 ### `ImportAlarmClasses` <sub>L2</sub>
 
-[L2][Category:PLC-Alarms][PreCondition:Connect+OpenProject]
+[L2][Category:PLC-Alarms][PreCondition:Connect+OpenProject] Import PLC alarm classes from a previously exported file. Overwrites existing alarm class definitions. Run CompileSoftware after import.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1517,7 +1570,7 @@
 
 ### `ImportAlarmTextLists` <sub>L2</sub>
 
-[L2][Category:PLC-Alarms][PreCondition:Connect+OpenProject]
+[L2][Category:PLC-Alarms][PreCondition:Connect+OpenProject] Import PLC alarm text lists from an XLSX file. The file must match the format exported by ExportAlarmTextLists. Run CompileSoftware after import to validate alarm configuration.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1629,7 +1682,7 @@
 
 ### `CheckDownloadReadiness` <sub>L1</sub>
 
-[L1][Category:PLC-Online][PreCondition:Connect+OpenProject+CompileSoftware]
+[L1][Category:PLC-Online][PreCondition:Connect+OpenProject+CompileSoftware] Check whether a PLC is ready to receive a program download WITHOUT actually downloading. Verifies: DownloadProvider service is available, a network/IP configuration exists in the hardware config. Returns Ready=true only when all checks pass. Use this before DownloadToPlc to surface problems early (missing IP, no hardware config, etc.). Meta.downloadRoutes lists every PG/PC interface -> CPU route (best-ranked first, preferred=true when the adapter shares a subnet with the CPU) — check it on a multi-NIC PC (WLAN/VPN/PLCSIM) before downloading. Does NOT compile — run CompileSoftware first to ensure blocks are consistent.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1639,7 +1692,7 @@
 
 ### `CompareSoftwareToOnline` <sub>L2</sub>
 
-[L2][Category:PLC-Online][PreCondition:Connect+OpenProject+GoOnline]
+[L2][Category:PLC-Online][PreCondition:Connect+OpenProject+GoOnline] Compare the offline PLC software in the project against the program currently running on the physical CPU. Use after editing blocks to confirm what differs from the live CPU before downloading, or after a download to verify offline/online consistency. Returns a tree-walked list of differences (only entries where ComparisonResult is not 'Equal' are reported). Requires GoOnline to be called first; will return IsOnline=false with guidance otherwise.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1651,7 +1704,7 @@
 
 ### `DownloadToPlc` <sub>L1</sub>
 
-[L1][Category:PLC-Online][ONLINE-WRITE][PreCondition:Connect+OpenProject+CompileSoftware+CheckDownloadReadiness]
+[L1][Category:PLC-Online][ONLINE-WRITE][PreCondition:Connect+OpenProject+CompileSoftware+CheckDownloadReadiness] Download the compiled PLC program to the physical CPU over the network. The CPU will stop briefly during download and restart automatically (controlled by startAfterDownload). SAFETY: Verify no personnel are near the machine before downloading. This changes live PLC behavior. Workflow: Connect → OpenProject → CompileSoftware → CheckDownloadReadiness → DownloadToPlc → GetOnlineState. On success State=Success or Warning. On Error check Errors[] for details. Default options (keepActualValues=true, consistentBlocksOnly=true) are safe for most scenarios. Set keepActualValues=false only when DB initial values must be reset — this is irreversible. On a multi-NIC PC the PG/PC interface is picked automatically (the adapter sharing a subnet with the CPU); Meta.pgPcRoute reports which one was used. Override with pgPcInterface / targetIpAddress when the pick is wrong. Meta.downloadPrompts lists every question TIA asked during the download and how it was answered. If test or commissioning functions are active on the CPU the download stops instead of cancelling them; pass abortActiveTests=true only after the user confirms nobody is using them.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1669,7 +1722,7 @@
 
 ### `GetOnlineState` <sub>L1</sub>
 
-[L1][Category:PLC-Online][PreCondition:Connect+OpenProject]
+[L1][Category:PLC-Online][PreCondition:Connect+OpenProject] Read the current online connection state of a PLC (Offline/Connecting/Online/Incompatible/NotReachable/Protected/Disconnecting). Does NOT change state — purely a read operation. Use before GoOnline to check current state, or after DownloadToPlc to verify the CPU is reachable. State=Online means the PC is communicating with the physical CPU. State=Incompatible means online but firmware/config mismatch — download required. State=NotReachable means network or IP configuration issue. NOTE: This reports Openness connection state, NOT the CPU operating mode (RUN/STOP). The TIA Portal public API does not expose CPU operating mode — check the CPU front panel LEDs or HMI for RUN/STOP status.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1679,7 +1732,7 @@
 
 ### `GetPlcForceTables` <sub>L2</sub>
 
-[L2][Category:PLC-Online][PreCondition:Connect+OpenProject]
+[L2][Category:PLC-Online][PreCondition:Connect+OpenProject] List all force table names in the PLC software. Force tables configure which variables are continuously forced to specific values while the CPU is online. Read-only: this server exposes NO tool for creating or editing force entries — forcing overrides live PLC logic (a forced output stays forced regardless of what the program writes) and is deliberately kept out of the AI tool surface. Create or edit force entries in the TIA Portal UI. For a one-shot value written from a watch table instead, use SetWatchTableModifyValue (the variable reverts to PLC logic afterwards).
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1689,7 +1742,7 @@
 
 ### `GoOffline` <sub>L1</sub>
 
-[L1][Category:PLC-Online][PreCondition:Connect+OpenProject]
+[L1][Category:PLC-Online][PreCondition:Connect+OpenProject] Disconnect the online session between TIA Portal and the physical PLC. Safe to call even if not currently online. Always go offline when monitoring or download is complete.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1699,13 +1752,13 @@
 
 ### `GoOfflineAll` <sub>L1</sub>
 
-[L1][Category:PLC-Online][PreCondition:Connect+OpenProject]
+[L1][Category:PLC-Online][PreCondition:Connect+OpenProject] Take EVERY PLC in the open project offline in one call and report each PLC's before/after online state. Use this whenever CompileSoftware/Export*/Import* is blocked by 'operation not permitted in online mode': a UI-initiated online session or a second online PLC is NOT released by GoOffline on a single softwarePath. Fully autonomous — never ask the user to toggle online/offline in the TIA UI, and never OCR the toolbar.
 
 返回：`ResponseJsonReport`
 
 ### `GoOnline` <sub>L1</sub>
 
-[L1][Category:PLC-Online][ONLINE-CONNECT][PreCondition:Connect+OpenProject]
+[L1][Category:PLC-Online][ONLINE-CONNECT][PreCondition:Connect+OpenProject] Establish an online connection from TIA Portal to the physical PLC. Required before DownloadToPlc to confirm reachability, or for future online monitoring tools. Returns State=Online on success. If ipAddress is omitted, uses the IP address configured in the project's hardware configuration. If ipAddress is provided, it selects which configured connection route to use (multi-NIC PCs, several target interfaces); Openness cannot connect to an address the project does not configure, so to reach a different IP change it in the hardware configuration first. Common failures: NotReachable (wrong IP / no cable), Protected (CPU requires authentication — supply password), Incompatible (firmware mismatch).
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1717,7 +1770,7 @@
 
 ### `SetWatchTableModifyValue` <sub>L2</sub>
 
-[L2][Category:PLC-Online][ONLINE-WRITE][PreCondition:Connect+OpenProject+GoOnline]
+[L2][Category:PLC-Online][ONLINE-WRITE][PreCondition:Connect+OpenProject+GoOnline] Configure a watch table entry to write a value to a PLC variable once (or on a trigger). This is an OFFLINE CONFIGURATION step — the value is written to the PLC only when TIA Portal is online and the trigger fires. Trigger options: Permanent (every cycle), PermanentAtStart (every cycle, at scan start), OnceOnlyAtStart (single write at scan start), PermanentAtEnd, OnceOnlyAtEnd, OnceOnlyAtStop. Use GoOnline before calling this for the write to reach the PLC. SAFETY: the target is a variable in the physical CPU, not a simulation. The moment the trigger fires the value lands on the real address — if that address is a coil, a valve, a contactor or a drive enable, the machine moves at that instant, with no acknowledgement step. Before calling, know exactly what the address drives and confirm nobody is at or inside the machine. The resulting physical motion is NOT undone by calling this tool again with another value; the equipment stays wherever it moved to. Not a Force: this writes the value once per trigger event and the variable then follows PLC logic again (a force would keep overriding the program continuously). This server exposes no tool for force entries — GetPlcForceTables only lists them; use TIA Portal directly to force a value. Example: SetWatchTableModifyValue('PLC_1', 'Debug_WT', 'DB1.DBX0.0', 'TRUE', 'OnceOnlyAtStart')
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1736,7 +1789,7 @@
 
 ### `ExportOpcUaInterface` <sub>L2</sub>
 
-[L2][Category:PLC-OpcUA][PreCondition:Connect+OpenProject]
+[L2][Category:PLC-OpcUA][PreCondition:Connect+OpenProject] Export an OPC UA server interface or reference namespace to an XML file. The exported XML can be inspected, modified, and re-imported. interfaceType: 'ServerInterface' (default), 'SimaticInterface', 'ReferenceNamespace'.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1749,7 +1802,7 @@
 
 ### `GetOpcUaConfig` <sub>L2</sub>
 
-[L2][Category:PLC-OpcUA][PreCondition:Connect+OpenProject]
+[L2][Category:PLC-OpcUA][PreCondition:Connect+OpenProject] Read the full OPC UA server configuration for a PLC: server interfaces, SIMATIC interfaces, and reference namespaces — each with their Name, Enabled state, and key properties. Use this to audit what OPC UA interfaces exist before enabling or exporting them. Enabled=true means the interface is active and will be downloaded to the CPU.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1759,7 +1812,7 @@
 
 ### `ImportOpcUaInterface` <sub>L2</sub>
 
-[L2][Category:PLC-OpcUA][PreCondition:Connect+OpenProject]
+[L2][Category:PLC-OpcUA][PreCondition:Connect+OpenProject] Import an OPC UA server interface or reference namespace from an XML file. If an interface with the same name (derived from the file name) already exists, it is updated in place. Otherwise a new interface is created. Download to PLC after import to apply changes to the CPU. interfaceType: 'ServerInterface' (default), 'ReferenceNamespace'.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1771,7 +1824,7 @@
 
 ### `SetOpcUaInterfaceEnabled` <sub>L2</sub>
 
-[L2][Category:PLC-OpcUA][PreCondition:Connect+OpenProject]
+[L2][Category:PLC-OpcUA][PreCondition:Connect+OpenProject] Enable or disable an OPC UA server interface, SIMATIC interface, or reference namespace. Setting Enabled=true activates the interface — download to PLC is required for the change to take effect on the CPU. interfaceType options: 'ServerInterface' (default), 'SimaticInterface', 'ReferenceNamespace'. Workflow: GetOpcUaConfig → SetOpcUaInterfaceEnabled → DownloadToPlc.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1836,7 +1889,7 @@
 
 ### `CreatePlcTagTable` <sub>L2</sub>
 
-[L2][PLC-Software] Create one EMPTY PLC tag table (变量表), optionally inside an existing tag-table group. Names are unique per PLC; a clash is refused.
+[L2][PLC-Software] Create one EMPTY PLC tag table (变量表), optionally inside an existing tag-table group. Names are unique per PLC; a clash is refused. Then fill it tag by tag with SetPlcTag (tagTableName = this table), or import a whole table with ImportPlcTagTable. Requires: Connect + OpenProject (or AttachToOpenProject). Afterwards SaveProject.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1848,7 +1901,7 @@
 
 ### `CreatePlcWatchTable` <sub>L2</sub>
 
-[L2][PLC-Software] Create one EMPTY watch table (监控表), optionally inside an existing watch-table group. A name clash is refused.
+[L2][PLC-Software] Create one EMPTY watch table (监控表), optionally inside an existing watch-table group. A name clash is refused. Entries with a modify value go in with SetWatchTableModifyValue; plain monitor rows are added in the TIA UI. Requires: Connect + OpenProject (or AttachToOpenProject). Afterwards SaveProject.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1860,7 +1913,7 @@
 
 ### `DeletePlcBlock` <sub>L2</sub>
 
-[L2][PLC-Software][Destructive] Preview or delete exactly one PLC block by its exact path, including
+[L2][PLC-Software][Destructive] Preview or delete exactly one PLC block by its exact path, including blocks inside nested groups. THIS IS ALSO THE TOOL FOR DELETING A DATA BLOCK: global DB, instance DB, ARRAY DB, FB, FC and OB are all PLC blocks, so there is no separate DeleteGlobalDb / DeleteDb / DeleteFunctionBlock tool - use this one. Defaults to dryRun=true, which changes nothing and reports the resolved target plus its cross references. It never deletes instance DBs or callers automatically. Before dryRun=false, review the previewed cross references (or run GetCrossReferences) and back the block up with ExportAsDocuments; compile with CompileSoftware after deletion and before SaveProject. Regex and wildcards are rejected. To delete a tag table use DeletePlcTagTable, a UDT use DeletePlcType.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1896,7 +1949,7 @@
 
 ### `DeletePlcTagTable` <sub>L2</sub>
 
-[L2][PLC-Software][Destructive] Preview or delete ONE PLC tag table (variable table / tag list)
+[L2][PLC-Software][Destructive] Preview or delete ONE PLC tag table (variable table / tag list) by name, including tables nested in user groups. Defaults to dryRun=true, which only reports what the table contains and deletes nothing. DANGER: deleting a tag table removes the SYMBOLS of every tag in it. HMI panels bind PLC tags by symbolic name, so the PLC may still compile clean while the HMI silently loses its bindings - always review the previewed tag list and cross references first. The default tag table (IsDefault) is refused. Cross references are attempted but may be unavailable at tag-table level; the response says explicitly whether they were obtained. Regex and wildcards are rejected. Back up first with ExportPlcTagTable.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1908,7 +1961,7 @@
 
 ### `DeletePlcType` <sub>L2</sub>
 
-[L2][PLC-Software][Destructive] Preview or delete ONE PLC user data type (UDT / PlcType) by its exact
+[L2][PLC-Software][Destructive] Preview or delete ONE PLC user data type (UDT / PlcType) by its exact path. Defaults to dryRun=true. Deleting a UDT breaks every DB and block interface declared with it, so the preview reports its cross references (GetCrossReferences works at type level) before you commit - review them first. Regex and wildcards are rejected. Export the type first with ExportType, and CompileSoftware afterwards.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -1973,8 +2026,6 @@
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
-| `server` | `IMcpServer` |  |  |
-| `context` | `RequestContext<CallToolRequestParams>` |  |  |
 | `softwarePath` | `string` |  | defines the path in the project structure to the plc software |
 | `exportPath` | `string` |  | defines the path where to export the blocks |
 | `regexName` | `string` | `""` | defines the name or regular expression to find the block. Use empty string (default) to find all |
@@ -1988,8 +2039,6 @@
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
-| `server` | `IMcpServer` |  |  |
-| `context` | `RequestContext<CallToolRequestParams>` |  |  |
 | `softwarePath` | `string` |  | defines the path in the project structure to the plc software |
 | `exportPath` | `string` |  | defines the path where to export the documents |
 | `regexName` | `string` | `""` | defines the name or regular expression to find the block. Use empty string (default) to find all |
@@ -2052,8 +2101,6 @@
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
-| `server` | `IMcpServer` |  |  |
-| `context` | `RequestContext<CallToolRequestParams>` |  |  |
 | `softwarePath` | `string` |  | defines the path in the project structure to the plc software |
 | `exportPath` | `string` |  | defines the path where to export the types |
 | `regexName` | `string` | `""` | defines the name or regular expression to find the block. Use empty string (default) to find all |
@@ -2085,7 +2132,7 @@
 
 ### `GetBlockInterface` <sub>L2</sub>
 
-[L2][PLC-Software] Read a block's INTERFACE (declarations) — FB/FC/OB/DB.
+[L2][PLC-Software] Read a block's INTERFACE (declarations) — FB/FC/OB/DB. Returns Input/Output/InOut/Static/Temp/Constant sections; each member has name, datatype, start value, comment, array bounds and nested struct members. Use this instead of ExportBlock plus hand-parsing XML when you need an FB's parameters, a DB's layout, or any block's variable declarations. Works for DBs too: the DB structure is its Static section. Requires: Connect + OpenProject + block consistent (compile first if IsConsistent=false) and offline (GoOffline first — the XML export does not work in online mode). For a UDT / PLC data type use GetTypeStructure.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -2219,7 +2266,7 @@
 
 ### `GetTypeStructure` <sub>L2</sub>
 
-[L2][PLC-Software] Read a PLC data type (UDT / PlcType) structure — members, datatypes,
+[L2][PLC-Software] Read a PLC data type (UDT / PlcType) structure — members, datatypes, start values, comments, array bounds and nested struct members. Use this for UDTs; for FB/FC/OB/DB use GetBlockInterface. Requires: Connect + OpenProject + offline (GoOffline first — the XML export does not work in online mode); type must be consistent (compile first if IsConsistent=false).
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -2273,8 +2320,6 @@
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
-| `server` | `IMcpServer` |  |  |
-| `context` | `RequestContext<CallToolRequestParams>` |  |  |
 | `softwarePath` | `string` |  | defines the path in the project structure to the plc software |
 | `groupPath` | `string` |  | optional path within the PLC program where the blocks should be placed (empty for root) |
 | `importPath` | `string` |  | directory containing the document files (.s7dcl/.s7res) |
@@ -2497,7 +2542,7 @@
 
 ### `ExportTechnologyObject` <sub>L2</sub>
 
-[L2][Category:PLC-TechnologyObjects][PreCondition:Connect+OpenProject]
+[L2][Category:PLC-TechnologyObjects][PreCondition:Connect+OpenProject] Export a single Technology Object (axis, cam, measuring input, etc.) to an XML file. The XML can be inspected, modified offline, and re-imported with ImportTechnologyObject. Use GetTechnologyObjects first to confirm the exact TO name.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -2509,7 +2554,7 @@
 
 ### `ExportTechnologyObjectsToDirectory` <sub>L2</sub>
 
-[L2][Category:PLC-TechnologyObjects][PreCondition:Connect+OpenProject]
+[L2][Category:PLC-TechnologyObjects][PreCondition:Connect+OpenProject] Batch-export all (or regex-filtered) Technology Objects to XML files in a directory. Each TO is saved as '<TOName>.xml'. Returns lists of exported names and any failures. Use regexName to filter by TO name, e.g. 'Axis_.*' for all axes.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -2521,7 +2566,7 @@
 
 ### `GetTechnologyObjects` <sub>L2</sub>
 
-[L2][Category:PLC-TechnologyObjects][PreCondition:Connect+OpenProject]
+[L2][Category:PLC-TechnologyObjects][PreCondition:Connect+OpenProject] List all Technology Objects (TOs) in the PLC software: axes, cams, measuring inputs, etc. Returns each TO's Name, type (OfSystemLibElement), and firmware version (OfSystemLibVersion). Use this to discover TO names before ExportTechnologyObject. No tool returns axis/TO parameter values directly — export the TO with ExportTechnologyObject and read the XML file. TOs are stored as TechnologicalInstanceDB instances in the TechnologicalObjectGroup.
 
 | 参数 | 类型 | 默认 | 说明 |
 |---|---|---|---|
@@ -2542,7 +2587,7 @@
 
 ### `ConnectIsolated` <sub>L1</sub>
 
-[L1][Portal] Start a BRAND-NEW headless TIA Portal instance instead of attaching to a running one.
+[L1][Portal] Start a BRAND-NEW headless TIA Portal instance instead of attaching to a running one. It never attaches to, modifies or closes any TIA window or project the user already has open. USE THIS when the user is working in the TIA Portal UI: plain Connect attaches to their instance and OpenProject then (correctly) refuses to touch their project, so the whole server is unusable until they close it. Must be the FIRST connection tool in a fresh MCP process — calling it after another connection leaves an orphaned portal process that later attaches steal. Afterwards use OpenProject / CreateProject as usual, then CloseProject and Disconnect.
 
 返回：`ResponseConnect`
 

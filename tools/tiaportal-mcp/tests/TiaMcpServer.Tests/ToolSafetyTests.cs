@@ -42,6 +42,15 @@ namespace TiaMcpServer.Tests
             Pin("GetBlocks", s => s.ReadOnly && !s.Destructive && s.Idempotent && s.TouchesPortal && !s.OpenWorld,
                 "read-only but still needs the portal");
             Pin("ReadPlcLiveValuesS7", s => s.ReadOnly && s.OpenWorld, "reads a CPU over the network");
+            // Batch orchestration: planning and ledger reads must never take the Openness
+            // handle; running a batch inherits the worst case and must be named by the host.
+            // 批次里可能含下载/在线工具（allowDirectOnly=true），所以整批保守地算 open-world。
+            Pin("RunBatch", s => s.Destructive && s.DirectOnly && s.OpenWorld && !s.ReadOnly,
+                "destructive, direct-only, conservatively open-world");
+            Pin("PlanBatch", s => s.ReadOnly && !s.Destructive && !s.DirectOnly && !s.TouchesPortal,
+                "read-only, portal-free preflight");
+            Pin("GetOpsLedger", s => s.ReadOnly && !s.Destructive && !s.TouchesPortal,
+                "read-only, portal-free ledger reader");
             Pin("FindTools", s => s.ReadOnly && !s.TouchesPortal, "tool search needs no portal");
             Pin("GetExport", s => s.ReadOnly && !s.TouchesPortal, "export store needs no portal");
             Pin("SaveExport", s => !s.ReadOnly && !s.TouchesPortal && !s.Destructive, "writes a file, not the project");
@@ -75,7 +84,7 @@ namespace TiaMcpServer.Tests
                 check(both.Count == 0, "no tool is both read-only and destructive (" + string.Join(",", both) + ")");
 
                 var portalFree = names.Where(n => !ToolSafety.Classify(n).TouchesPortal).OrderBy(n => n).ToList();
-                check(portalFree.SequenceEqual(new[] { "ClearExports", "DeleteExport", "FindTools", "GetAuthoringGuide", "GetExport", "ListExports", "SaveExport" }),
+                check(portalFree.SequenceEqual(new[] { "ClearExports", "DeleteExport", "FindTools", "GetAuthoringGuide", "GetExport", "GetOpsLedger", "GetToolCapabilities", "ListExports", "PlanBatch", "SaveExport" }),
                     "only the tool search, the guide and the export store skip the Openness gate (got: " + string.Join(",", portalFree) + ")");
 
                 int readOnly = names.Count(n => ToolSafety.Classify(n).ReadOnly);

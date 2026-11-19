@@ -10,6 +10,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
+using TiaMcpServer.Siemens;
 
 namespace TiaMcpServer.ModelContextProtocol
 {
@@ -62,7 +63,8 @@ namespace TiaMcpServer.ModelContextProtocol
             "everything else is reached through this tool plus CallTool. " +
             "USE THIS whenever the visible tools do not cover what you need, before concluding the server cannot do something. " +
             "Search by capability words, not exact names: 'watch table', 'HMI screen', 'download', 'cross reference', 'GSD'. " +
-            "Returns each match's exact name, parameter signature with defaults, and full description; then invoke it with CallTool.")]
+            "Returns each match's exact name, parameter signature with defaults, and full description; then invoke it with CallTool. " +
+            "Each result line ends with an [access|status] tag: access is read/write/delete, status is verified/implemented/unverified/planned.")]
         public static ResponseStringList FindTools(
             [Description("query: space-separated words matched against tool names and descriptions, e.g. 'export watch table'. Empty lists the whole roster.")] string query = "",
             [Description("limit: max tools to return (default 12). Raise it for a broad survey.")] int limit = 12)
@@ -117,7 +119,12 @@ namespace TiaMcpServer.ModelContextProtocol
                 {
                     var m = all[h.Value];
                     bool listed = !lite || LiteToolNames.Contains(h.Value);
+                    // 签名后面直接挂上能力摘要：模型在决定要不要 CallTool 之前，就能看到
+                    // 这是读还是写、有没有真机验证过，不用再单独调一次 GetToolCapabilities。
+                    var capability = ToolCapabilities.Classify(h.Value, ToolDescription(m), Engineering.TiaMajorVersion);
                     lines.Add(ReflectiveToolInvoker.RenderSignature(h.Value, m, Injector(null, null, default))
+                              + "  [" + capability.Access.ToString().ToLowerInvariant()
+                              + "|" + capability.Status.ToString().ToLowerInvariant() + "]"
                               + (listed ? "  [already listed - call it directly]" : "  [call via CallTool]"));
                     lines.Add("    " + ToolDescription(m));
                 }
@@ -150,6 +157,24 @@ namespace TiaMcpServer.ModelContextProtocol
             [Description("name: exact tool name from FindTools, e.g. 'ExportPlcWatchTable'.")] string name,
             [Description("argumentsJson: JSON object of the tool's arguments, e.g. '{\"softwarePath\":\"PLC_1\"}'. Omit or '{}' for a no-argument tool.")] string argumentsJson = "",
             CancellationToken cancellationToken = default)
+        {
+            // The public bridge always keeps the direct-only refusal. RunBatch shares this
+            // executor but passes its own pre-checked allowDirectOnly flag, so batching a
+            // download/delete never requires weakening CallTool itself.
+            return await ExecuteToolByName(server, context, name, argumentsJson, cancellationToken, allowDirectOnly: false)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>Resolve a tool by name and invoke it. Shared by CallTool and RunBatch;
+        /// <paramref name="allowDirectOnly"/> is false for the public bridge and true only after
+        /// the batch planner has checked the direct-only policy explicitly.</summary>
+        internal static async Task<object?> ExecuteToolByName(
+            IMcpServer server,
+            RequestContext<CallToolRequestParams> context,
+            string name,
+            string argumentsJson,
+            CancellationToken cancellationToken,
+            bool allowDirectOnly)
         {
             string target = (name ?? "").Trim();
             if (target.Length == 0)
@@ -184,7 +209,16 @@ namespace TiaMcpServer.ModelContextProtocol
             // Canonical casing from here on, so the safety table and the error messages agree.
             target = method.GetCustomAttribute<McpServerToolAttribute>()?.Name ?? method.Name;
 
-            if (ToolSafety.Classify(target).DirectOnly)
+            // 纵深防御：RunBatch 的 BatchGate 是不可重入的。预检已经拒绝嵌套 RunBatch，
+            // 但这里再挡一次 —— 将来预检若回退，唯一后果必须是一条错误，而不是整台服务器
+            // 在信号量上等自己等到超时。只在 allowDirectOnly=true（即批次路径）触发：
+            // 公开 CallTool 的 allowDirectOnly=false 会走下面的 direct-only 拒绝。
+            if (allowDirectOnly && string.Equals(target, "RunBatch", StringComparison.Ordinal))
+                throw new McpException(
+                    "RunBatch cannot be nested inside another RunBatch: the process-wide Portal lock is not reentrant. " +
+                    "Put the inner operations in the outer batch instead.", McpErrorCode.InvalidRequest);
+
+            if (!allowDirectOnly && ToolSafety.Classify(target).DirectOnly)
                 throw new McpException(
                     "CallTool refuses '" + target + "': it changes a running CPU or deletes engineering data, so it must be " +
                     "called by its own name - the host then shows the user exactly what will run. It is in this session's " +

@@ -1,5 +1,75 @@
 ﻿# Change Log
 
+## [2.8.0] - 2026-11-19 - Trust & Batch：能力矩阵 / 批次预检 / 操作账本
+
+工具数 235 → 239（V19）。本版不新增 TIA Openness 业务能力，也不改任何既有工具的业务行为；
+`FindTools` 仅追加能力标签。目标是让模型和宿主在调用前就能判断「能不能做、需要什么前置」，
+并在批量执行后留下可审计的账本。
+
+### 新增
+
+- **`GetToolCapabilities`**（L0 Meta，只读、不占 Portal）：为每个工具返回 access（Read / Write / Delete）、
+  status（Verified / Implemented / Unverified / Planned）、destructive / directOnly / openWorld、
+  固定顺序的 requires（portal / online / confirm / dryRun / V20+ / V21+）以及逐工具的 Evidence。
+  `FindTools` 的签名行同时追加 `[access|status]`，不必再多一次往返才知道工具性质。
+- **`PlanBatch`**（L1 Orchestration，只读、不占 Portal）：接收 `[{tool, argumentsJson}, ...]`，
+  静态检查工具存在、版本支持（Planned 拒绝）、DirectOnly 是否显式放行、写/删除是否 `confirm=true`、
+  `argumentsJson` 是否为 JSON object，并用 `ReflectiveToolInvoker.Bind` 做真实参数绑定预检。
+  返回 `canRun` 与逐条 `issues`，**一条都不执行**。
+- **`RunBatch`**（L1 Orchestration，Destructive + DirectOnly，必须按本名调用）：重新执行同一份预检，
+  任何一条有 issue 就整批拒绝（不会出现「前三条改了工程、第四条没改」的半执行状态）。通过后生成
+  `batch-<12hex>`，在进程级 `SemaphoreSlim(1,1)` 内按数组顺序执行；等待锁时尊重取消。
+  `continueOnError=false` 时首错即停、其余标 `skipped`；取消不吞，先记 in-flight 账本行再抛。
+  预检显式拒绝嵌套 `RunBatch`（锁不可重入，否则整批等自己）和嵌套 `CallTool`；`InvokeObject` /
+  `InvokeService` 带 `allowWrite=true` 时同样拒绝，必须按本名调用。
+  `ExecuteToolByName` 另外做纵深防御：批次路径上再遇到 `RunBatch` 直接报错，而不是撞死锁。
+- **`GetOpsLedger`**（L0 Meta，只读、不占 Portal）：读取 JSONL 账本尾部（默认 50 行，夹 1..500）。
+
+### 设计取舍
+
+- **能力矩阵来自一张表**：`ToolSafety` 继续是 access / destructive / directOnly / openWorld 的唯一来源，
+  status 采用保守分级 —— 只有能指回具体真机记录的工具才是 `Verified`；版本门控未通过的是 `Planned`；
+  明确未测的（HMI 全系、`GetBlockInterface`、`GetTypeStructure`、部分 SD/VCI）是 `Unverified`。
+- **先预检、后执行**：`PlanBatch` 与 `RunBatch` 复用 `BatchPlanner` 的同一套零依赖规则，适配层只额外加
+  参数绑定。这样离线测试可以钉住「哪些批次该被拒」，而不需要 MCP SDK 或 TIA 安装。
+- **账本只记哈希**：每条操作写一行 UTF-8 JSONL，参数只保存原始 `ArgumentsJson` 的 SHA-256（小写 hex），
+  不落明文（工程里常有客户名、地址和变量值）。追加与读取共用进程内锁，并发调用不会写出半行。
+  `error` 字段同样脱敏：工具异常常原样引用调用方传入的变量名/路径，写入前会把参数 JSON 里的每个
+  标量值（字符串、数字、`true`/`false`，含嵌套数组/对象）替换成 `***`，**先替换后截断**到 300 字符
+  （`OpsLedger.RedactError`），但保留异常类型和消息形状。追加使用 `FileShare.ReadWrite`，另一个进程
+  可以同时持有并追加账本。
+- **Portal 串行化**：Openness 句柄是进程级单例，整批只拿一把锁，避免两个「看起来独立」的工具在同一句柄上
+  交错，制造难以复现的崩溃或「对象已失效」。
+- **不削弱 `CallTool`**：`CallTool` 的公开行为和 direct-only 拒绝名单保持不变。仅把名称解析后的执行体抽成
+  `ExecuteToolByName(..., allowDirectOnly)`；批内 direct-only 支持只由 `RunBatch` 在预检通过后传入 `true`。
+
+### 文档
+
+- 新增 `docs/TRUST-LAYER.md`（能力矩阵、批次预检、账本与示例 JSON）与 `docs/TRUST-LAYER-SPEC.md`（实现契约）。
+- `manifest/tools-list.json` 增加到 239 个工具；`README.V19.md` 增加 “v2.8.0 Trust & Batch” 一节。
+- **已知过期**：`docs/tool-capability-matrix.md` 仍是 2026-10-31 的 235 条快照，尚未包含本版的四个工具。
+  生成器 `scripts/Generate-ToolCapabilityMatrix.ps1` 依赖 Windows PowerShell，本机（Linux）无法运行；
+  且它扫描全部 `McpServer*.cs`，不会排除 V19 构建面之外的 5 个 VCI 工具。待下一次 Windows 构建时
+  以 V19 工具面重新生成（应为 239 条），在此之前不要把它当作权威清单（运行时以 `tools/list` 为准）。
+- 发布元数据：`bundleVersion` / `plugin.json` / 三个项目的 `AssemblyVersion` → 2.8.0；
+  `mcpToolCount` → 239；`liteProfile.toolCount` → 71（`LiteToolNames` 实际 67 + 4）。
+
+### 发布阻塞（Release blocker）
+
+- 源码与程序集版本已是 **2.8.0**，但仓库内 `runtime/v21/TiaMcpServer.exe` 仍是 **2.7.8.4**。
+  本机是 Linux，无法重建这个 .NET Framework 4.8 二进制；分发前必须在 Windows 上重新构建并替换
+  `runtime/v21/`，否则 `scripts/Validate-Bundle.ps1 -Strict` 无法通过。这是本版唯一未清零的发布阻塞项。
+
+### 验证
+
+- V19 构建 **0 errors / 2 既有 warnings**（MSB3539、OpcUaLiveReader CS8602）。
+- `TiaMcpServer.Tests` **698 passed / 0 failed / 0 skipped**（687 基线 + 11 条终检补充用例：
+  数字/布尔标量脱敏、跨 300 字符边界的值、嵌套数组/对象、非法 JSON、替换后长度上限、
+  另一进程读写共享时追加）。此前基线 622，本版新增 72 条：批次预检、嵌套 `RunBatch` /
+  `CallTool` / `InvokeObject|InvokeService allowWrite` 拒绝、账本追加/读尾（含无结尾换行）/
+  哈希/并发/错误脱敏、以及 `RunBatch` / `PlanBatch` / `GetOpsLedger` 的安全表钉住。
+- 批次/账本为纯离线逻辑，未在 Windows + TIA 真机上执行；`RunBatch` 的 Portal 串行行为需真机复测。
+
 ## [2.7.8.4] - 2026-11-18 - 调用框 / TON 数组实例 / 空网络提示 + GetState / GetBlockInfo 排障
 
 工具数不变（V19 235）。

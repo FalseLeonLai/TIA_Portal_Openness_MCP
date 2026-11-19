@@ -25,6 +25,15 @@ namespace TiaMcpServer.ModelContextProtocol
             // L0 — the bridge to everything not listed here. Without these two, lite is a
             // dead end: the model cannot even discover that the other tools exist.
             "FindTools", "CallTool",
+            // L0 — capability matrix. A model in lite must be able to ask "can this run on this
+            // engine, and does it need confirmation?" before it starts editing; this tool costs
+            // no portal handle, so it is safe to keep in every profile.
+            "GetToolCapabilities",
+            // Batch workflow: plan is read-only/portal-free, run is destructive and must be
+            // listed by its own name (CallTool refuses direct-only tools), and the ledger
+            // reader is how a caller audits or resumes a batch. All three stay in lite so a
+            // small model can plan before it edits.
+            "PlanBatch", "GetOpsLedger", "RunBatch",
             // L0 — orientation / diagnostics
             "Bootstrap", "Doctor", "GetState", "GetAuthoringGuide",
             "GenerateAcceptanceReport", "GenerateErrorReport",

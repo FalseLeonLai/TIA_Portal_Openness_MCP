@@ -1,8 +1,8 @@
 ﻿{
-  "package": "TIA_MCP_V19_v2.7.8",
-  "generatedAt": "2026-11-08T23:55:00+08:00",
+  "package": "TIA_MCP_V19_v2.8.0",
+  "generatedAt": "2026-11-19T10:00:00+08:00",
   "source": "tools/tiaportal-mcp/src/TiaMcpServer/ModelContextProtocol/*.cs (V19 build excludes VCI)",
-  "toolCount": 235,
+  "toolCount": 239,
   "note": "Full roster (--profile full). The default lite profile lists only the core tools; the rest stay reachable via FindTools + CallTool. Runtime tools/list remains authoritative.",
   "tools": [
     {
@@ -1723,6 +1723,17 @@
       "description": "[L2][Category:PLC-OpcUA][PreCondition:Connect+OpenProject] Read the full OPC UA server configuration for a PLC: server interfaces, SIMATIC interfaces, and reference namespaces — each with their Name, Enabled state, and key properties. Use this to audit what OPC UA interfaces exist before enabling or exporting them. Enabled=true means the interface is active and will be downloaded to the CPU."
     },
     {
+      "name": "GetOpsLedger",
+      "layer": "L0",
+      "domain": "Meta",
+      "method": "GetOpsLedger",
+      "returnType": "",
+      "parameters": [
+        "limit"
+      ],
+      "description": "[L0][Meta] Read the tail of the operation ledger written by RunBatch. Returns JSONL lines with timestamp, batchId, index, tool, access, status (ok/error/skipped), durationMs, argumentsSha256 and error. Arguments are never stored in plain text. Default limit 50 (values <= 0 use 50, values > 500 are capped at 500). Does not touch TIA Portal. Use it to audit what a batch did or to resume after a failure."
+    },
+    {
       "name": "GetPlcExternalSources",
       "layer": "L2",
       "domain": "PLC-Software",
@@ -1888,6 +1899,20 @@
         "softwarePath"
       ],
       "description": "[L2][Category:PLC-TechnologyObjects][PreCondition:Connect+OpenProject] List all Technology Objects (TOs) in the PLC software: axes, cams, measuring inputs, etc. Returns each TO's Name, type (OfSystemLibElement), and firmware version (OfSystemLibVersion). Use this to discover TO names before ExportTechnologyObject. No tool returns axis/TO parameter values directly — export the TO with ExportTechnologyObject and read the XML file. TOs are stored as TechnologicalInstanceDB instances in the TechnologicalObjectGroup."
+    },
+    {
+      "name": "GetToolCapabilities",
+      "layer": "L0",
+      "domain": "Meta",
+      "method": "GetToolCapabilities",
+      "returnType": "",
+      "parameters": [
+        "query",
+        "status",
+        "access",
+        "limit"
+      ],
+      "description": "[L0][Meta] Describe what every tool does before calling it: read/write/delete access, verification status (Verified / Implemented / Unverified / Planned), destructiveness, direct-only calls, open-world calls, and prerequisites (portal, online, confirm, dryRun, V20+, V21+). USE THIS before planning a multi-step edit or a write: a Planned tool cannot run on this TIA version, and a Destructive tool needs the user's confirmation. Filter by query (space-separated words matched against name/description/category), status or access; limit defaults to 50 and caps at 500. Returns the same roster FindTools searches."
     },
     {
       "name": "GetTypeInfo",
@@ -2377,6 +2402,20 @@
       "description": "[L1][Project] Open a local TIA Portal project (.apXX) or multi-user session (.alsXX) file, where XX is the TIA version number (e.g. .ap21, .als21). Requires: Connect. Closes any currently open project first. After success, call GetProjectTree to explore its structure."
     },
     {
+      "name": "PlanBatch",
+      "layer": "L1",
+      "domain": "Orchestration",
+      "method": "PlanBatch",
+      "returnType": "",
+      "parameters": [
+        "operationsJson",
+        "confirm",
+        "allowDirectOnly",
+        "maxOperations"
+      ],
+      "description": "[L1][Orchestration] Validate a list of tool calls WITHOUT executing anything. operationsJson is a JSON array like '[{\"tool\":\"GetBlocks\",\"argumentsJson\":\"{\\\"softwarePath\\\":\\\"PLC_1\\\"}\"}]'. Checks that every tool exists, is supported by this TIA version, is not direct-only unless allowDirectOnly=true, has confirm=true when it writes, and that argumentsJson binds to the tool's real parameters. Returns CanRun plus every issue per operation. Does not touch TIA Portal. USE THIS before RunBatch: it costs nothing and turns a half-executed batch into a list of fixes."
+    },
+    {
       "name": "PlanGlobalLibraryTemplateReuse",
       "layer": "L2",
       "domain": "HMI-Library",
@@ -2604,6 +2643,21 @@
         "compileAfter"
       ],
       "description": "[L2][PLC-Software]Try import a block XML; if compile fails, return diagnostics and best-effort suggestions (no destructive actions)."
+    },
+    {
+      "name": "RunBatch",
+      "layer": "L1",
+      "domain": "Orchestration",
+      "method": "RunBatch",
+      "returnType": "",
+      "parameters": [
+        "operationsJson",
+        "confirm",
+        "continueOnError",
+        "allowDirectOnly",
+        "maxOperations"
+      ],
+      "description": "[L1][Orchestration][Destructive] Execute a pre-checked batch of tool calls sequentially. operationsJson is the same JSON array as PlanBatch '[{\"tool\":\"GetBlocks\",\"argumentsJson\":\"{\\\"softwarePath\\\":\\\"PLC_1\\\"}\"}]'. The whole batch is re-preflighted first and is refused (nothing runs) if any operation has an issue. Operations run in array order behind one process-wide Portal lock; every operation is written to the JSONL operation ledger (arguments are stored only as SHA-256). confirm=true is required for writes/deletes; continueOnError=false stops at the first failure and marks the rest skipped; allowDirectOnly=true permits download/online/delete tools in the batch. Use PlanBatch first to see the issues without running anything."
     },
     {
       "name": "RunCapabilitySelfTest",

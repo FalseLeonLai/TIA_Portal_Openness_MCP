@@ -1,12 +1,15 @@
-﻿# TIA Portal V19 引擎（2.7.8.4）
+﻿# TIA Portal V19 引擎（2.8.0）
 
-> 状态：**V19 构建 0 errors / 2 既有 warnings；离线测试 546 passed；B1–B5 未真机**（2026-11-18）。
+> 状态：**V19 构建 0 errors / 2 既有 warnings；离线测试 698 passed / 0 failed（687 基线 + 11 条账本脱敏/共享用例）；B1–B5 未真机**（2026-11-19）。
+> **发布阻塞（Release blocker）**：源码已是 **2.8.0**，但 `runtime/v21/TiaMcpServer.exe` 仍是 **2.7.8.4**；
+> 分发前必须在 Windows 上重新构建，否则 `scripts/Validate-Bundle.ps1 -Strict` 无法通过。本机是 Linux，
+> 无法重建该 .NET Framework 4.8 二进制，这是本版唯一未清零的发布阻塞项。
 > 核心链、块读取与导出、HTTP 编码、V19 边界、编译、生成、日常编辑（除改名）、HTTP 安全已真机验证；HMI 未测（测试工程无 HMI）。
 > 已知问题：`ExportDeviceAml` 在 V19 上可能让 TIA 实例崩溃；`SetPlcTag` 改名在 V19 不受支持（`PlcTag.Name` 只读）。
 >
 > **给 AI agent**：先读 [`docs/AGENT_COOKBOOK.md`](docs/AGENT_COOKBOOK.md)（决策表 / 黄金路径 / 参数规则 / token 纪律），
 > 经验库在 [`docs/AGENT_LEARNINGS.md`](docs/AGENT_LEARNINGS.md)。
-> 全部 **235** 个工具（V19 编译面）的说明与索引：[`docs/TOOLS_REFERENCE.md`](docs/TOOLS_REFERENCE.md)（机器索引用 `docs/tools-index.csv`）。
+> 全部 **239** 个工具（V19 编译面）的说明与索引：[`docs/TOOLS_REFERENCE.md`](docs/TOOLS_REFERENCE.md)（机器索引用 `docs/tools-index.csv`）。
 
 ## 这是什么
 
@@ -79,9 +82,33 @@
 - **验证**：V19 构建 0 errors / 2 既有 warnings；离线 **546 passed / 0 failed**（新增 7 条）。
   B1–B5 尚未真机，需用含 FB/FC 调用、多个同名 TON、空网络和 NBSP 路径的块复测。
 
+## v2.8.0 Trust & Batch（2026-11-19）
+
+工具数 235 → 239（V19）。这一版不加新的 TIA 业务能力，只让模型在**动手之前**能判断
+「能不能做、要什么前置、做完怎么审计」：
+
+| 工具 | 层 | 用途 |
+|---|---|---|
+| `GetToolCapabilities` | L0 Meta | 每个工具的 access（读/写/删除）、status（Verified / Implemented / Unverified / Planned）、requires（portal / online / confirm / dryRun / V20+ / V21+）和 Evidence。`FindTools` 的结果行也会带 `[read|verified]` 摘要。 |
+| `PlanBatch` | L1 Orchestration | 对一批 `{tool, argumentsJson}` 做静态预检：工具存在、版本支持、DirectOnly 策略、写操作确认、参数能否绑定；**不执行、不碰 Portal**。 |
+| `RunBatch` | L1 Orchestration（Destructive / DirectOnly） | 复跑同一份预检，通过后在进程级 Portal 锁内顺序执行；逐操作写 JSONL 账本，失败可按 `continueOnError` 停止或继续。 |
+| `GetOpsLedger` | L0 Meta | 读取账本尾部（默认 50 行）。账本只存参数 SHA-256，不落明文。路径由 `TIA_MCP_LEDGER` 覆盖，默认 `%LOCALAPPDATA%\TiaMcpServer\ops-ledger.jsonl`。 |
+
+示例：
+
+```json
+[
+  {"tool":"GetBlocks","argumentsJson":"{\"softwarePath\":\"PLC_1\"}"},
+  {"tool":"SetPlcTag","argumentsJson":"{\"softwarePath\":\"PLC_1\",\"tagName\":\"Tag_1\",\"tagTableName\":\"Default tag table\",\"dataType\":\"Int\",\"address\":\"%MW100\"}"}
+]
+```
+
+先调 `PlanBatch(operationsJson, confirm=true)` 看 `canRun` 和逐条 `issues`，再调
+`RunBatch(operationsJson, confirm=true)`。设计说明见 [`docs/TRUST-LAYER.md`](docs/TRUST-LAYER.md)。
+
 ## 默认工具档位
 
-master 2.4+ 默认 **lite**（核心工具）。要看到全部 235 个工具：
+master 2.4+ 默认 **lite**（核心工具）。要看到全部 239 个工具：
 
 ```bat
 rem MCP 客户端启动参数

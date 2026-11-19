@@ -53,6 +53,40 @@ def parse_string_literal(s, i):
     raise ValueError("not a string")
 
 
+def parse_string_chain(s, i):
+    """Parse one or more adjacent C# string literals joined by '+'.
+
+    A long [Description] is routinely written as a chain of string literals across several
+    lines ("... " + "..." + "..."). Reading only the first literal would publish a description
+    cut mid-sentence, so concatenate the whole chain. Returns (text, end_index) where
+    end_index is just past the last literal.
+    """
+    parts = []
+    j = i
+    while True:
+        while j < len(s) and s[j].isspace():
+            j += 1
+        if s.startswith('@"', j) or (j < len(s) and s[j] == '"'):
+            text, j = parse_string_literal(s, j)
+            parts.append(text)
+        else:
+            break
+
+        # Look ahead for `+ "next literal"`; anything else ends the chain.
+        k = j
+        while k < len(s) and s[k].isspace():
+            k += 1
+        if k < len(s) and s[k] == "+":
+            k += 1
+            while k < len(s) and s[k].isspace():
+                k += 1
+            if s.startswith('@"', k) or (k < len(s) and s[k] == '"'):
+                j = k
+                continue
+        break
+    return "".join(parts), j
+
+
 def find_matching_paren(s, i):
     """s[i] == '('; return index of matching ')'."""
     depth = 0
@@ -104,14 +138,24 @@ def parse_param(p):
     desc = ""
     m = re.search(r"\[Description\(", p)
     if m:
-        start = m.end(1) - len(m.group(1)) if False else p.index('"', m.end() - 1)
-        text, end = parse_string_literal(p, p.index("Description(") + len("Description("))
+        text, end = parse_string_chain(p, p.index("Description(") + len("Description("))
         desc = text
         p = p[p.index("]", end) + 1:].strip() if "]" in p[end:] else p[end:].strip()
     m = PARAM_RE.match(p)
     if not m:
         return {"type": p, "name": "", "default": "", "desc": desc}
     return {"type": m.group("type").strip(), "name": m.group("name"), "default": (m.group("default") or "").strip(), "desc": desc}
+
+
+# Parameters the MCP SDK injects at call time (server handle, request context, cancellation
+# token). The model never sends them and the runtime tools/list schema does not expose them,
+# so they must not appear in the generated signature.
+INJECTED_PARAM_TYPES = {"IMcpServer", "CancellationToken"}
+
+
+def is_injected_param(param):
+    normalized = re.sub(r"\s+", "", param.get("type", ""))
+    return normalized in INJECTED_PARAM_TYPES or normalized.startswith("RequestContext<")
 
 
 def clean(text):
@@ -129,10 +173,7 @@ def main():
             desc_start = s.find("Description(", m.end())
             if desc_start < 0:
                 continue
-            str_start = desc_start + len("Description(")
-            while s[str_start].isspace():
-                str_start += 1
-            desc, desc_end = parse_string_literal(s, str_start)
+            desc, desc_end = parse_string_chain(s, desc_start + len("Description("))
             attr_end = s.find("]", desc_end)
             sig_start = s.find("public static", attr_end)
             if sig_start < 0:
@@ -142,6 +183,7 @@ def main():
             decl_end = find_matching_paren(s, paren)
             params_block = s[paren + 1:decl_end]
             params = [parse_param(x) for x in split_params(params_block)]
+            params = [p for p in params if not is_injected_param(p)]
             tools.append({
                 "name": name,
                 "layer": re.match(r"\[(L\d)\]", desc).group(1) if re.match(r"\[(L\d)\]", desc) else "L2",
@@ -178,7 +220,9 @@ def main():
     lines.append("# TIA Portal MCP 工具总览（全部 %d 个）" % len(tools))
     lines.append("")
     lines.append("> 由 `scripts/generate-tools-reference.py` 从源码 `[McpServerTool]` 属性生成，"
-                 "与运行时 `tools/list` 一致。生成日期：" + __import__("datetime").date.today().isoformat() + "。")
+                 "描述与运行时 `tools/list` 一致；参数表省略 SDK 注入的 `IMcpServer` / "
+                 "`RequestContext` / `CancellationToken`。生成日期："
+                 + __import__("datetime").date.today().isoformat() + "。")
     lines.append("> 分层：**L0** 只读引导/诊断 · **L1** 高频主力 · **L2** 专用/离线构建器。")
     lines.append(">")
     lines.append("> **V19 注意**：`ExportAsDocuments`、`ExportBlocksAsDocuments`、`ImportFromDocuments`、"

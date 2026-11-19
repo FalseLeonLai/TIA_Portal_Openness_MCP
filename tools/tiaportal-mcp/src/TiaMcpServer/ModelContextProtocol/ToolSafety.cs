@@ -38,6 +38,9 @@ namespace TiaMcpServer.ModelContextProtocol
             "DownloadToPlc", "GoOnline", "SetWatchTableModifyValue",
             "DeletePlcBlock", "DeletePlcType", "DeletePlcTagTable", "DeletePlcExternalSource",
             "DeletePlcTag", "DeletePlcWatchTable", "DeleteDevice",
+            // 整批调用会放大一条写入/删除的影响面；让宿主在批准提示里看到的是 RunBatch
+            // 而不是一个语焉不详的 CallTool。
+            "RunBatch",
         };
 
         public static IReadOnlyCollection<string> DirectOnlyTools => DirectOnly;
@@ -45,7 +48,10 @@ namespace TiaMcpServer.ModelContextProtocol
         // Proven not to touch the TIA Portal handle: the tool search and the in-memory export store.
         private static readonly HashSet<string> PortalFree = new HashSet<string>(StringComparer.Ordinal)
         {
-            "FindTools", "GetAuthoringGuide",
+            // 能力矩阵只读反射目录，和 FindTools 一样不碰 TIA 句柄。
+            // 批次预检与账本读取同理：PlanBatch 只做静态检查，GetOpsLedger 只读本地文件。
+            "FindTools", "GetToolCapabilities", "GetAuthoringGuide",
+            "PlanBatch", "GetOpsLedger",
             "GetExport", "ListExports", "SaveExport", "DeleteExport", "ClearExports",
         };
 
@@ -58,6 +64,12 @@ namespace TiaMcpServer.ModelContextProtocol
 
         private static readonly HashSet<string> ReadOnlyExtra = new HashSet<string>(StringComparer.Ordinal)
         {
+            // GetToolCapabilities 已经会被 "Get" 前缀判成只读；显式列出是防止将来改名/加规则时
+            // 悄悄把它降级成写工具（CallTool 就会因此多要一次确认）。
+            "GetToolCapabilities",
+            // Plan/Get 前缀已经会判成只读；显式写出防止将来改规则时把预检或账本读取
+            // 悄悄降级成写工具（那样 CallTool 会多要一次确认，甚至拒绝转发）。
+            "PlanBatch", "GetOpsLedger",
             "RunOnlineMonitoringSafetySelfTest", "RunHmiActionScriptRecipeSafetySelfTest",
         };
 
@@ -84,6 +96,8 @@ namespace TiaMcpServer.ModelContextProtocol
             "GoOffline", "GoOfflineAll",
             "DownloadToPlc", "PlcBuildAndImport", "GenerateBlocksFromExternalSource",
             "ClearExports",
+            // A batch can contain any write or direct-only tool; inherit the worst case.
+            "RunBatch",
         };
 
         private static readonly HashSet<string> OpenWorldTools = new HashSet<string>(StringComparer.Ordinal)
@@ -92,6 +106,9 @@ namespace TiaMcpServer.ModelContextProtocol
             "CompareSoftwareToOnline", "GetPlcRunStateS7", "ProbeS7CpuIdentity",
             "ReadPlcLiveValuesS7", "ReadPlcLiveValuesOpcUa", "SamplePlcLiveValuesS7",
             "MonitorWatchTableLiveS7", "TraceTagCauseLive",
+            // 批次里可能包含下载/在线工具（allowDirectOnly=true），整批的可达面就是其中
+            // 最开放的那一条。保守地标 online，让宿主在预检后按「可能连 CPU」提示用户。
+            "RunBatch",
         };
 
         // Repeating the call with the same arguments leaves the same end state.

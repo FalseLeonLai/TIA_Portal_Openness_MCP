@@ -75,6 +75,15 @@ namespace TiaMcpServer.Tests
             Console.WriteLine("== 工具安全表：annotations / Openness 串行闸 / CallTool 拒绝名单 ==");
             ToolSafetyTests.Run(Check, Skip);
 
+            Console.WriteLine("== 能力矩阵：access / status / requires / evidence ==");
+            ToolCapabilityTests.Run(Check, Skip);
+
+            Console.WriteLine("== 批次预检：空批 / 未知工具 / Planned / DirectOnly / 确认门 / 参数 JSON ==");
+            BatchPlannerTests.Run(Check);
+
+            Console.WriteLine("== 操作账本：追加→读尾 / SHA-256 / 不落明文参数 / 并发安全 ==");
+            OpsLedgerTests.Run(Check);
+
             Console.WriteLine("== CallTool：异步工具要拿到结果本身，注入参数要被填上 ==");
             ToolBridgeTests.Run(Check);
 
