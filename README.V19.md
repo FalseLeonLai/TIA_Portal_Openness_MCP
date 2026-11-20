@@ -1,9 +1,8 @@
 ﻿# TIA Portal V19 引擎（2.8.0）
 
 > 状态：**V19 构建 0 errors / 2 既有 warnings；离线测试 698 passed / 0 failed（687 基线 + 11 条账本脱敏/共享用例）；B1–B5 未真机**（2026-11-19）。
-> **发布阻塞（Release blocker）**：源码已是 **2.8.0**，但 `runtime/v21/TiaMcpServer.exe` 仍是 **2.7.8.4**；
-> 分发前必须在 Windows 上重新构建，否则 `scripts/Validate-Bundle.ps1 -Strict` 无法通过。本机是 Linux，
-> 无法重建该 .NET Framework 4.8 二进制，这是本版唯一未清零的发布阻塞项。
+> **运行时状态**：`runtime/v21/TiaMcpServer.exe` 已用本机 V21 PublicAPI 引用重建为 **2.8.0**（2026-11-20），
+> 程序集版本与源码一致；仍建议在装有 TIA V21 的 Windows 上跑一次真实启动与 `scripts/Validate-Bundle.ps1 -Strict`。
 > 核心链、块读取与导出、HTTP 编码、V19 边界、编译、生成、日常编辑（除改名）、HTTP 安全已真机验证；HMI 未测（测试工程无 HMI）。
 > 已知问题：`ExportDeviceAml` 在 V19 上可能让 TIA 实例崩溃；`SetPlcTag` 改名在 V19 不受支持（`PlcTag.Name` 只读）。
 >

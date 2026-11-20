@@ -54,11 +54,12 @@
 - 发布元数据：`bundleVersion` / `plugin.json` / 三个项目的 `AssemblyVersion` → 2.8.0；
   `mcpToolCount` → 239；`liteProfile.toolCount` → 71（`LiteToolNames` 实际 67 + 4）。
 
-### 发布阻塞（Release blocker）
+### 运行时构建
 
-- 源码与程序集版本已是 **2.8.0**，但仓库内 `runtime/v21/TiaMcpServer.exe` 仍是 **2.7.8.4**。
-  本机是 Linux，无法重建这个 .NET Framework 4.8 二进制；分发前必须在 Windows 上重新构建并替换
-  `runtime/v21/`，否则 `scripts/Validate-Bundle.ps1 -Strict` 无法通过。这是本版唯一未清零的发布阻塞项。
+- `runtime/v21/TiaMcpServer.exe` 已用 `/home/li/csharp-learning/port/siemens21/V21/net48` 的 V21 PublicAPI
+  引用重建为 **2.8.0**（程序集版本 2.8.0.0），与源码一致。
+- 本机没有 PowerShell，`scripts/Validate-Bundle.ps1 -Strict` 未执行；分发前仍应在 Windows 上跑一次
+  真实启动与严格校验（运行时冒烟 + 脚本）。这不再是“二进制过期”阻塞，而是最后的平台验证项。
 
 ### 验证
 
